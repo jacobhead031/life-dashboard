@@ -530,6 +530,22 @@ body {
 .login-btn:hover:not(:disabled) { filter: brightness(1.08); }
 .login-btn:disabled { opacity: .6; cursor: not-allowed; }
 
+/* ─── Sunrise/sunset toggle buttons ────────────────────────── */
+.arc-toggle {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-space-mono), monospace;
+  font-size: 11px;
+  color: var(--muted);
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: background .15s, color .15s;
+}
+.arc-toggle:hover:not(:disabled) { background: rgba(255,255,255,.05); color: var(--text); }
+.arc-toggle.done { color: var(--amber); }
+.arc-toggle:disabled { cursor: wait; opacity: .7; }
+
 /* ─── Sunrise/sunset time display ──────────────────────────── */
 .arc-time {
   display: flex;

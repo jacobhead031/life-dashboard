@@ -1,3 +1,9 @@
+"use client";
+
+import { useOptimistic, useTransition } from "react";
+import { setSunriseSunset } from "@/app/actions";
+import type { SunriseSunset } from "@/lib/types";
+
 type SunTimes = {
   sunrise: string;
   sunset: string;
@@ -6,18 +12,44 @@ type SunTimes = {
   isDaytime: boolean;
 };
 
-// Point on the upper semicircle. pct=0 → left horizon, pct=1 → right horizon
+type State = { sunriseDone: boolean; sunsetDone: boolean };
+
 function arcPoint(pct: number): { x: number; y: number } {
   const alpha = (1 - pct) * Math.PI;
   return { x: 100 + 90 * Math.cos(alpha), y: 100 - 90 * Math.sin(alpha) };
 }
 
-// Sunrise sits at 25%, sunset at 75% of the arc
 const SR = arcPoint(0.25);
 const SS = arcPoint(0.75);
 
-export function SunriseSunsetCard({ times }: { times: SunTimes | null }) {
-  // Sun dot position: maps 0→1 (sunrise→sunset) to 25%→75% of arc
+export function SunriseSunsetCard({
+  times,
+  ss,
+  currentMonthStr,
+}: {
+  times: SunTimes | null;
+  ss: SunriseSunset | null;
+  currentMonthStr: string;
+}) {
+  const initial: State = {
+    sunriseDone: ss?.sunrise_done ?? false,
+    sunsetDone:  ss?.sunset_done  ?? false,
+  };
+
+  const [isPending, startTransition] = useTransition();
+  const [state, applyOptimistic] = useOptimistic(
+    initial,
+    (prev: State, next: Partial<State>) => ({ ...prev, ...next })
+  );
+
+  function toggle(field: "sunriseDone" | "sunsetDone") {
+    const next = { ...state, [field]: !state[field] };
+    startTransition(async () => {
+      applyOptimistic({ [field]: !state[field] });
+      await setSunriseSunset(currentMonthStr, next.sunriseDone, next.sunsetDone);
+    });
+  }
+
   const sunArcPct = times ? 0.25 + times.sunPct * 0.5 : 0;
   const sunPos = arcPoint(sunArcPct);
 
@@ -38,31 +70,24 @@ export function SunriseSunsetCard({ times }: { times: SunTimes | null }) {
             </linearGradient>
           </defs>
 
-          {/* Sky fill */}
           <path d="M10 100 A 90 90 0 0 1 190 100 Z" fill="url(#sky-grad)" />
-          {/* Arc path */}
           <path d="M10 100 A 90 90 0 0 1 190 100" fill="none" stroke="var(--line)" strokeWidth="2" />
-          {/* Horizon */}
           <line x1="0" y1="100" x2="200" y2="100" stroke="var(--line)" strokeWidth="2" />
 
-          {/* Sunrise marker */}
           <circle cx={SR.x} cy={SR.y} r="3.5" fill="var(--muted-2)" />
-          {/* Sunset marker */}
           <circle cx={SS.x} cy={SS.y} r="3.5" fill="var(--muted-2)" />
 
-          {/* Moving sun — only shown during daytime */}
           {times?.isDaytime && (
             <circle cx={sunPos.x} cy={sunPos.y} r="9" fill="url(#sun-grad)" />
           )}
-
-          {/* Night indicator — dim circle on horizon */}
           {times && !times.isDaytime && (
             <circle cx="100" cy="100" r="6" fill="none" stroke="var(--muted-2)" strokeWidth="1.5" strokeDasharray="3 2" />
           )}
         </svg>
       </div>
 
-      <div className="arc-legend">
+      {/* Times row */}
+      <div className="arc-legend" style={{ marginBottom: 12 }}>
         <div className="arc-time">
           <span className="arc-label">sunrise</span>
           <span className="arc-val">{times?.sunrise ?? "—"}</span>
@@ -75,6 +100,26 @@ export function SunriseSunsetCard({ times }: { times: SunTimes | null }) {
           <span className="arc-label">sunset</span>
           <span className="arc-val">{times?.sunset ?? "—"}</span>
         </div>
+      </div>
+
+      {/* Watched toggles */}
+      <div className="arc-legend">
+        <button
+          className={`arc-toggle${state.sunriseDone ? " done" : ""}`}
+          onClick={() => !isPending && toggle("sunriseDone")}
+          disabled={isPending}
+          aria-label={state.sunriseDone ? "unmark sunrise watched" : "mark sunrise watched"}
+        >
+          {state.sunriseDone ? "☀ watched sunrise" : "○ mark sunrise watched"}
+        </button>
+        <button
+          className={`arc-toggle${state.sunsetDone ? " done" : ""}`}
+          onClick={() => !isPending && toggle("sunsetDone")}
+          disabled={isPending}
+          aria-label={state.sunsetDone ? "unmark sunset watched" : "mark sunset watched"}
+        >
+          {state.sunsetDone ? "☀ watched sunset" : "○ mark sunset watched"}
+        </button>
       </div>
     </section>
   );

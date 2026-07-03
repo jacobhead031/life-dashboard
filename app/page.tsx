@@ -81,6 +81,7 @@ export default async function HomePage() {
     { data: reflections },
     { data: reflectionNotes },
     { data: birthdays },
+    { data: ss },
     sunTimes,
   ] = await Promise.all([
     supabase
@@ -112,6 +113,7 @@ export default async function HomePage() {
       .select("*")
       .order("created_at", { ascending: false }),
     supabase.from("recurring_date").select("*"),
+    supabase.from("sunrise_sunset").select("*").eq("month", currentMonthStr).maybeSingle(),
     fetchTorontoSunTimes(todayStr),
   ]);
 
@@ -159,7 +161,7 @@ export default async function HomePage() {
 
         {/* Row 3 — targets (span 3) + sunrise/sunset (span 3) */}
         <TargetsCard targets={targets ?? []} currentYear={currentYear} />
-        <SunriseSunsetCard times={sunTimes} />
+        <SunriseSunsetCard times={sunTimes} ss={ss ?? null} currentMonthStr={currentMonthStr} />
 
         {/* Row 4 — reflection (span 6) */}
         <ReflectionCard
