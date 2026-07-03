@@ -82,7 +82,7 @@ function NotesEditor({
 }
 
 export function BooksContent({ books }: { books: Book[] }) {
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [filter, setFilter] = useState<StatusFilter>("all");
   const [showAdd, setShowAdd] = useState(false);
   const [expandedNotes, setExpandedNotes] = useState<Set<string>>(new Set());
@@ -94,8 +94,6 @@ export function BooksContent({ books }: { books: Book[] }) {
     "reading"
   );
   const [totalPages, setTotalPages] = useState("");
-  const [adding, setAdding] = useState(false);
-
   const counts = {
     all: books.length,
     reading: books.filter((b) => b.status === "reading").length,
@@ -114,21 +112,22 @@ export function BooksContent({ books }: { books: Book[] }) {
     });
   }
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!title.trim() || !author.trim()) return;
-    setAdding(true);
+    const data = {
+      title: title.trim(),
+      author: author.trim(),
+      status,
+      total_pages: totalPages ? parseInt(totalPages) : null,
+    };
     setShowAdd(false);
     setTitle("");
     setAuthor("");
     setStatus("reading");
     setTotalPages("");
-    await addBook({
-      title: title.trim(),
-      author: author.trim(),
-      status,
-      total_pages: totalPages ? parseInt(totalPages) : null,
+    startTransition(async () => {
+      await addBook(data);
     });
-    setAdding(false);
   }
 
   function handleRate(book: Book, n: number) {
@@ -180,9 +179,9 @@ export function BooksContent({ books }: { books: Book[] }) {
         <button
           className="btn primary"
           onClick={() => setShowAdd((v) => !v)}
-          disabled={adding}
+          disabled={isPending}
         >
-          {showAdd ? "✕ cancel" : "+ add book"}
+          {isPending ? "adding…" : showAdd ? "✕ cancel" : "+ add book"}
         </button>
       </div>
 

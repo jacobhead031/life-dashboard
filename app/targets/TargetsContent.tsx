@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { addTarget, updateTarget, deleteTarget } from "@/app/actions";
 import type { Target } from "@/lib/types";
 
@@ -97,7 +97,7 @@ export function TargetsContent({
   const [kind, setKind] = useState<"count" | "best">("count");
   const [goal, setGoal] = useState("");
   const [unit, setUnit] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const allYears = Array.from(
     new Set([currentYear, ...targets.map((t) => t.year)])
@@ -105,19 +105,17 @@ export function TargetsContent({
 
   const filtered = targets.filter((t) => t.year === year);
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!name.trim() || !goal) return;
-    setAdding(true);
+    const data = { name: name.trim(), kind, goal: parseFloat(goal) || 0, unit: unit.trim() || null, year };
     setShowAdd(false);
-    const n = name.trim();
-    const u = unit.trim() || null;
-    const g = parseFloat(goal) || 0;
     setName("");
     setKind("count");
     setGoal("");
     setUnit("");
-    await addTarget({ name: n, kind, goal: g, unit: u, year });
-    setAdding(false);
+    startTransition(async () => {
+      await addTarget(data);
+    });
   }
 
   async function handleSave(target: Target, current: number, g: number) {
@@ -148,7 +146,7 @@ export function TargetsContent({
         <button
           className="btn primary"
           onClick={() => setShowAdd((v) => !v)}
-          disabled={adding}
+          disabled={isPending}
         >
           {showAdd ? "✕ cancel" : "+ add target"}
         </button>

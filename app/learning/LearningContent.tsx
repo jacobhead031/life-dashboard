@@ -83,7 +83,7 @@ function StepList({
 }
 
 export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
-  const [, startTransition] = useTransition();
+  const [isPending, startTransition] = useTransition();
   const [showAdd, setShowAdd] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -97,18 +97,16 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [labelDraft, setLabelDraft] = useState("");
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!name.trim()) return;
+    const data = { name: name.trim(), total_steps: parseInt(totalSteps) || 5, current_label: currentLabel.trim(), accent };
     setShowAdd(false);
     setName("");
     setTotalSteps("5");
     setCurrentLabel("");
     setAccent("sky");
-    await addTrack({
-      name: name.trim(),
-      total_steps: parseInt(totalSteps) || 5,
-      current_label: currentLabel.trim(),
-      accent,
+    startTransition(async () => {
+      await addTrack(data);
     });
   }
 
@@ -143,8 +141,9 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
         <button
           className="btn primary"
           onClick={() => setShowAdd((v) => !v)}
+          disabled={isPending}
         >
-          {showAdd ? "✕ cancel" : "+ add track"}
+          {isPending ? "saving…" : showAdd ? "✕ cancel" : "+ add track"}
         </button>
       </div>
 

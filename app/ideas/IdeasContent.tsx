@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { addIdea, archiveIdea } from "@/app/actions";
 import type { Idea } from "@/lib/types";
 
@@ -13,7 +13,7 @@ export function IdeasContent({ ideas }: { ideas: Idea[] }) {
   const [tag, setTag] = useState("");
   const [text, setText] = useState("");
   const [effort, setEffort] = useState("");
-  const [adding, setAdding] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   const active = ideas.filter((i) => !i.archived);
   const archived = ideas.filter((i) => i.archived);
@@ -23,18 +23,16 @@ export function IdeasContent({ ideas }: { ideas: Idea[] }) {
   const filtered =
     filterTag ? active.filter((i) => i.tag === filterTag) : active;
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!text.trim()) return;
-    setAdding(true);
+    const data = { tag: tag.trim(), text: text.trim(), effort: effort.trim() };
     setShowAdd(false);
-    const addedTag = tag.trim();
-    const addedText = text.trim();
-    const addedEffort = effort.trim();
     setTag("");
     setText("");
     setEffort("");
-    await addIdea({ tag: addedTag, text: addedText, effort: addedEffort });
-    setAdding(false);
+    startTransition(async () => {
+      await addIdea(data);
+    });
   }
 
   async function handleArchive(idea: Idea) {
@@ -70,7 +68,7 @@ export function IdeasContent({ ideas }: { ideas: Idea[] }) {
         <button
           className="btn primary"
           onClick={() => setShowAdd((v) => !v)}
-          disabled={adding}
+          disabled={isPending}
         >
           {showAdd ? "✕ cancel" : "+ add idea"}
         </button>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { addBirthday, updateBirthday, deleteBirthday } from "@/app/actions";
 import type { RecurringDate } from "@/lib/types";
 
@@ -27,7 +27,7 @@ export function BirthdaysContent({
   const [day, setDay] = useState(1);
   const [relationship, setRelationship] = useState("");
   const [leadDays, setLeadDays] = useState("7");
-  const [adding, setAdding] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   // Edit form state (mirrors add)
   const [editName, setEditName] = useState("");
@@ -36,20 +36,18 @@ export function BirthdaysContent({
   const [editRelationship, setEditRelationship] = useState("");
   const [editLeadDays, setEditLeadDays] = useState("7");
 
-  async function handleAdd() {
+  function handleAdd() {
     if (!name.trim()) return;
-    setAdding(true);
+    const data = { name: name.trim(), month, day, relationship: relationship.trim() || null, lead_days: parseInt(leadDays) || 7 };
     setShowAdd(false);
-    const n = name.trim();
-    const r = relationship.trim() || null;
-    const l = parseInt(leadDays) || 7;
     setName("");
     setMonth(1);
     setDay(1);
     setRelationship("");
     setLeadDays("7");
-    await addBirthday({ name: n, month, day, relationship: r, lead_days: l });
-    setAdding(false);
+    startTransition(async () => {
+      await addBirthday(data);
+    });
   }
 
   function startEdit(b: RecurringDate) {
@@ -86,7 +84,7 @@ export function BirthdaysContent({
         <button
           className="btn primary"
           onClick={() => setShowAdd((v) => !v)}
-          disabled={adding}
+          disabled={isPending}
         >
           {showAdd ? "✕ cancel" : "+ add birthday"}
         </button>
