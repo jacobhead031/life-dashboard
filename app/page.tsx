@@ -2,6 +2,50 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { getUpcomingBirthday } from "@/lib/utils";
 
+type SunTimes = {
+  sunrise: string;
+  sunset: string;
+  dayLength: string;
+  sunPct: number;
+  isDaytime: boolean;
+};
+
+async function fetchTorontoSunTimes(date: string): Promise<SunTimes | null> {
+  try {
+    const res = await fetch(
+      `https://api.sunrise-sunset.org/json?lat=43.6532&lng=-79.3832&date=${date}&formatted=0`,
+      { next: { revalidate: 3600 } }
+    );
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (json.status !== "OK") return null;
+
+    const fmt = (iso: string) =>
+      new Date(iso).toLocaleTimeString("en-US", {
+        timeZone: "America/Toronto",
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true,
+      });
+
+    const sunriseMs = new Date(json.results.sunrise).getTime();
+    const sunsetMs  = new Date(json.results.sunset).getTime();
+    const nowMs     = Date.now();
+
+    const diffMs   = sunsetMs - sunriseMs;
+    const hours    = Math.floor(diffMs / 3_600_000);
+    const mins     = Math.floor((diffMs % 3_600_000) / 60_000);
+    const dayLength = `${hours}h ${mins}m`;
+
+    const sunPct    = Math.max(0, Math.min(1, (nowMs - sunriseMs) / (sunsetMs - sunriseMs)));
+    const isDaytime = nowMs >= sunriseMs && nowMs <= sunsetMs;
+
+    return { sunrise: fmt(json.results.sunrise), sunset: fmt(json.results.sunset), dayLength, sunPct, isDaytime };
+  } catch {
+    return null;
+  }
+}
+
 import { Greeting } from "@/components/Greeting";
 import { SignOutButton } from "@/components/SignOutButton";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
@@ -25,16 +69,18 @@ export default async function HomePage() {
   const currentMonthStr = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
 
   // Fetch all data in parallel — RLS ensures we only get this user's rows
+  const todayStr = now.toISOString().split("T")[0];
+
   const [
     { data: goals },
     { data: ideas },
     { data: books },
     { data: tracks },
     { data: targets },
-    { data: ss },
     { data: reflections },
     { data: reflectionNotes },
     { data: birthdays },
+    sunTimes,
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -59,17 +105,13 @@ export default async function HomePage() {
       .select("*")
       .eq("year", currentYear)
       .order("updated_at", { ascending: false }),
-    supabase
-      .from("sunrise_sunset")
-      .select("*")
-      .eq("month", currentMonthStr)
-      .maybeSingle(),
     supabase.from("reflection").select("*").order("updated_at"),
     supabase
       .from("reflection_note")
       .select("*")
       .order("created_at", { ascending: false }),
     supabase.from("recurring_date").select("*"),
+    fetchTorontoSunTimes(todayStr),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -116,7 +158,7 @@ export default async function HomePage() {
 
         {/* Row 3 — targets (span 3) + sunrise/sunset (span 3) */}
         <TargetsCard targets={targets ?? []} currentYear={currentYear} />
-        <SunriseSunsetCard ss={ss ?? null} currentMonthStr={currentMonthStr} />
+        <SunriseSunsetCard times={sunTimes} />
 
         {/* Row 4 — reflection (span 6) */}
         <ReflectionCard

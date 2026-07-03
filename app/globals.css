@@ -422,12 +422,7 @@ body {
 .arc-legend {
   display: flex;
   justify-content: space-between;
-  font-family: var(--font-space-mono), monospace;
-  font-size: 12px;
 }
-.arc-legend span { color: var(--muted); }
-.arc-legend b { color: var(--text); font-weight: 700; }
-.arc-legend .done-val { color: var(--amber); }
 
 /* ─── Reflection card ───────────────────────────────────────── */
 .reflect {
@@ -535,36 +530,25 @@ body {
 .login-btn:hover:not(:disabled) { filter: brightness(1.08); }
 .login-btn:disabled { opacity: .6; cursor: not-allowed; }
 
-/* ─── Sunrise/sunset toggle buttons ────────────────────────── */
-.arc-legend {
+/* ─── Sunrise/sunset time display ──────────────────────────── */
+.arc-time {
   display: flex;
-  justify-content: space-between;
-  font-family: var(--font-space-mono), monospace;
-  font-size: 12px;
+  flex-direction: column;
+  gap: 3px;
 }
-.arc-toggle {
-  background: none;
-  border: none;
-  cursor: pointer;
+.arc-label {
   font-family: var(--font-space-mono), monospace;
-  font-size: 12px;
-  color: var(--muted);
-  padding: 4px 6px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  transition: background .15s;
-}
-.arc-toggle:hover:not(:disabled) { background: rgba(255,255,255,.05); color: var(--text); }
-.arc-toggle:disabled { cursor: wait; opacity: .7; }
-.arc-nudge {
   font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
   color: var(--muted-2);
-  margin-left: 4px;
-  letter-spacing: .5px;
 }
-.arc-toggle:hover .arc-nudge { color: var(--amber); }
+.arc-val {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
 
 /* ─── Book inline page editing ──────────────────────────────── */
 .book-progress-row {
