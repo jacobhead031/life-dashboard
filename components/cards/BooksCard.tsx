@@ -153,8 +153,13 @@ export function BooksCard({
               })}
             </>
           ) : (
-            <div className="now-label" style={{ color: "var(--muted-2)", marginBottom: 16 }}>
-              nothing in progress
+            <div style={{ marginBottom: 16 }}>
+              <div className="now-label" style={{ color: "var(--muted-2)" }}>
+                nothing in progress
+              </div>
+              <Link href="/books" className="empty-link" style={{ marginTop: 6, display: "inline-block" }}>
+                → open shelf &amp; add a book
+              </Link>
             </div>
           )}
 
