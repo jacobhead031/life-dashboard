@@ -56,6 +56,7 @@ import { LearningCard } from "@/components/cards/LearningCard";
 import { TargetsCard } from "@/components/cards/TargetsCard";
 import { SunriseSunsetCard } from "@/components/cards/SunriseSunsetCard";
 import { ReflectionCard } from "@/components/cards/ReflectionCard";
+import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -165,6 +166,9 @@ export default async function HomePage() {
           reflections={reflections ?? []}
           notes={reflectionNotes ?? []}
         />
+
+        {/* Row 5 — birthdays (span 6) */}
+        <BirthdaysCard birthdays={birthdays ?? []} />
       </div>
     </div>
   );
