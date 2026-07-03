@@ -24,7 +24,8 @@ export function ReflectionCard({
   return (
     <section className="card span-6 reflect" style={{ animationDelay: ".20s" }}>
       <div className="card-label">
-        reflection · no scores, just check in
+        <span>reflection · no scores, just check in</span>
+        <Link href="/reflection" className="card-nav">view →</Link>
       </div>
 
       {reflections.length === 0 ? (

@@ -10,7 +10,10 @@ export function TargetsCard({
 }) {
   return (
     <section className="card span-3" style={{ animationDelay: ".14s" }}>
-      <div className="card-label">yearly targets · {currentYear}</div>
+      <div className="card-label">
+        <span>yearly targets · {currentYear}</span>
+        <Link href="/targets" className="card-nav">view →</Link>
+      </div>
 
       {targets.length === 0 ? (
         <div className="empty-state">

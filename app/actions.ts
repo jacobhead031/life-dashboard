@@ -27,6 +27,46 @@ export async function addGoal(text: string, month: string) {
   revalidatePath("/");
 }
 
+export async function carryOverGoals(fromMonth: string, toMonth: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+
+  const [{ data: incomplete }, { data: existing }] = await Promise.all([
+    supabase
+      .from("monthly_goal")
+      .select("*")
+      .eq("month", fromMonth)
+      .eq("done", false)
+      .eq("user_id", user.id),
+    supabase
+      .from("monthly_goal")
+      .select("text")
+      .eq("month", toMonth)
+      .eq("user_id", user.id),
+  ]);
+
+  if (!incomplete?.length) return;
+
+  const existingTexts = new Set((existing ?? []).map((g) => g.text));
+  const toInsert = incomplete
+    .filter((g) => !existingTexts.has(g.text))
+    .map((g) => ({
+      user_id: user.id,
+      text: g.text,
+      month: toMonth,
+      origin_month: g.origin_month,
+      done: false,
+    }));
+
+  if (toInsert.length > 0) {
+    await supabase.from("monthly_goal").insert(toInsert);
+  }
+
+  revalidatePath("/goals");
+  revalidatePath("/");
+}
+
 export async function deleteGoal(id: string) {
   const supabase = await createClient();
   await supabase.from("monthly_goal").delete().eq("id", id);

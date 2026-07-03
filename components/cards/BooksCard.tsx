@@ -62,7 +62,10 @@ export function BooksCard({
 
   return (
     <section className="card span-3" style={{ animationDelay: ".10s" }}>
-      <div className="card-label">books · {finishedThisYear} read this year</div>
+      <div className="card-label">
+        <span>books · {finishedThisYear} read this year</span>
+        <Link href="/books" className="card-nav">shelf →</Link>
+      </div>
 
       {books.length === 0 ? (
         <div className="empty-state">

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useOptimistic, useTransition } from "react";
-import { addGoal, deleteGoal, toggleGoal } from "@/app/actions";
+import { addGoal, deleteGoal, toggleGoal, carryOverGoals } from "@/app/actions";
 import type { MonthlyGoal } from "@/lib/types";
 
 const MONTH_NAMES = [
@@ -127,6 +127,24 @@ export function GoalsContent({
     });
   }
 
+  // Carry-over detection
+  function prevMonth(m: string): string {
+    const [y, mo] = m.split("-").map(Number);
+    return mo === 1 ? `${y - 1}-12` : `${y}-${String(mo - 1).padStart(2, "0")}`;
+  }
+  const lastMonth = prevMonth(currentMonth);
+  const lastMonthName = MONTH_NAMES[parseInt(lastMonth.split("-")[1]) - 1];
+  const currentTexts = new Set(
+    optimisticGoals.filter((g) => g.month === currentMonth).map((g) => g.text)
+  );
+  const carryable = optimisticGoals.filter(
+    (g) => g.month === lastMonth && !g.done && !currentTexts.has(g.text)
+  );
+
+  async function handleCarryOver() {
+    await carryOverGoals(lastMonth, currentMonth);
+  }
+
   // Group by month
   const monthMap = new Map<string, MonthlyGoal[]>();
   for (const g of optimisticGoals) {
@@ -143,6 +161,18 @@ export function GoalsContent({
 
   return (
     <div>
+      {/* Carry-over banner */}
+      {carryable.length > 0 && (
+        <div className="carry-banner">
+          <span>
+            {carryable.length} incomplete goal{carryable.length !== 1 ? "s" : ""} from {lastMonthName}
+          </span>
+          <button className="d-btn" onClick={handleCarryOver}>
+            carry over
+          </button>
+        </div>
+      )}
+
       {/* Current month */}
       <div
         style={{

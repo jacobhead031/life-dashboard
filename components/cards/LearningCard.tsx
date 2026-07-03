@@ -7,7 +7,10 @@ const CIRC = 2 * Math.PI * 16;
 export function LearningCard({ tracks }: { tracks: LearningTrack[] }) {
   return (
     <section className="card span-3" style={{ animationDelay: ".12s" }}>
-      <div className="card-label">learning tracks</div>
+      <div className="card-label">
+        <span>learning tracks</span>
+        <Link href="/learning" className="card-nav">view →</Link>
+      </div>
 
       {tracks.length === 0 ? (
         <div className="empty-state">

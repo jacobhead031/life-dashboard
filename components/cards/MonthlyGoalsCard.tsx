@@ -37,8 +37,8 @@ export function MonthlyGoalsCard({
   return (
     <section className="card span-2" style={{ animationDelay: ".04s" }}>
       <div className="card-label">
-        this month · {monthName}
-        {hasCarryOver ? " · carries over" : ""}
+        <span>this month · {monthName}{hasCarryOver ? " · carries over" : ""}</span>
+        <Link href="/goals" className="card-nav">goals →</Link>
       </div>
 
       {goals.length === 0 ? (
