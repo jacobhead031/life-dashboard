@@ -156,29 +156,29 @@ export default async function HomePage() {
 
       {/* ── Bento grid ─────────────────────────────────────── */}
       <div className="grid-bento">
-        {/* Row 1 — monthly goals (span 2) + start something (span 4) */}
+        {/* Row 1 — habits (span 6) */}
+        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={todayStr} />
+
+        {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
         <MonthlyGoalsCard
           goals={goals ?? []}
           currentMonthStr={currentMonthStr}
         />
         <StartSomethingCard ideas={ideas ?? []} />
 
-        {/* Row 2 — books (span 3) + learning (span 3) */}
+        {/* Row 3 — books (span 3) + learning (span 3) */}
         <BooksCard books={books ?? []} finishedThisYear={finishedThisYear} />
         <LearningCard tracks={tracks ?? []} />
 
-        {/* Row 3 — targets (span 3) + sunrise/sunset (span 3) */}
+        {/* Row 4 — targets (span 3) + sunrise/sunset (span 3) */}
         <TargetsCard targets={targets ?? []} currentYear={currentYear} />
         <SunriseSunsetCard times={sunTimes} ss={ss ?? null} currentMonthStr={currentMonthStr} />
 
-        {/* Row 4 — reflection (span 6) */}
+        {/* Row 5 — reflection (span 6) */}
         <ReflectionCard
           reflections={reflections ?? []}
           notes={reflectionNotes ?? []}
         />
-
-        {/* Row 5 — habits (span 6) */}
-        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={todayStr} />
 
         {/* Row 6 — birthdays (span 6) */}
         <BirthdaysCard birthdays={birthdays ?? []} />
