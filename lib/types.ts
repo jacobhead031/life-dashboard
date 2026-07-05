@@ -82,6 +82,23 @@ export type ReflectionNote = {
   created_at: string;
 };
 
+export type Habit = {
+  id: string;
+  user_id: string;
+  name: string;
+  color: string; // 'amber' | 'sky' | 'green' | 'coral'
+  created_at: string;
+  updated_at: string;
+};
+
+export type HabitLog = {
+  id: string;
+  user_id: string;
+  habit_id: string;
+  date: string; // YYYY-MM-DD
+  created_at: string;
+};
+
 export type SunriseSunset = {
   user_id: string;
   month: string; // YYYY-MM

@@ -695,6 +695,115 @@ body {
   * { animation: none !important; transition: none !important; }
 }
 
+/* ─── Habits card ───────────────────────────────────────────── */
+.habit-list { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+.habit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.habit-circle {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid var(--habit-color);
+  background: transparent;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background .18s, transform .1s;
+}
+.habit-circle:active { transform: scale(.88); }
+.habit-circle.done { background: var(--habit-color); }
+.habit-circle:disabled { cursor: wait; }
+.habit-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.habit-dots { display: flex; gap: 4px; align-items: center; }
+.habit-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--line);
+  flex-shrink: 0;
+  transition: background .15s;
+}
+.habit-streak {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 40px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+/* ─── Habits detail page ────────────────────────────────────── */
+.habit-cal-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 4px;
+}
+.habit-cal-header span {
+  text-align: center;
+  font-family: var(--font-space-mono), monospace;
+  font-size: 9px;
+  color: var(--muted-2);
+  letter-spacing: .5px;
+}
+.habit-cal-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.habit-cal-dot {
+  aspect-ratio: 1;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s, border-color .15s;
+  padding: 0;
+}
+.habit-cal-dot.done { border-color: transparent; }
+.habit-cal-dot.today { border-width: 2px; }
+.habit-cal-dot:disabled { cursor: default; opacity: .35; }
+.habit-color-pick { display: flex; gap: 10px; }
+.color-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform .12s, border-color .12s;
+}
+.color-swatch.selected { border-color: var(--text); transform: scale(1.18); }
+.habit-circle-sm {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 11px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 4px 10px;
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+  white-space: nowrap;
+}
+.habit-circle-sm.done {
+  color: var(--habit-color);
+  border-color: var(--habit-color);
+  background: rgba(0,0,0,.15);
+}
+
 /* ─── Responsive ────────────────────────────────────────────── */
 @media (max-width: 880px) {
   .wrap { padding: 32px 20px 60px; }
@@ -703,6 +812,14 @@ body {
   .greeting { font-size: 27px; }
   .r-inner { flex-direction: column; }
   .r-divider { width: 100%; height: 1px; align-self: auto; }
+}
+
+@media (max-width: 520px) {
+  .wrap { padding: 18px 14px 60px; }
+  .grid-bento { grid-template-columns: 1fr; gap: 12px; }
+  .span-2, .span-3, .span-4, .span-6 { grid-column: span 1; }
+  .greeting { font-size: 22px; }
+  .habit-dots { display: none; }
 }
 
 /* ─── Detail views (Phase 3) ────────────────────────────────── */

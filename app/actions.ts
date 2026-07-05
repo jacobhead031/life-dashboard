@@ -355,3 +355,34 @@ export async function deleteReflection(id: string) {
   revalidatePath("/reflection");
   revalidatePath("/");
 }
+
+// ── Habits ────────────────────────────────────────────────────
+
+export async function addHabit(name: string, color: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("habit").insert({ user_id: user.id, name, color });
+  revalidatePath("/habits");
+  revalidatePath("/");
+}
+
+export async function deleteHabit(id: string) {
+  const supabase = await createClient();
+  await supabase.from("habit").delete().eq("id", id);
+  revalidatePath("/habits");
+  revalidatePath("/");
+}
+
+export async function toggleHabitLog(habitId: string, date: string, isDone: boolean) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  if (isDone) {
+    await supabase.from("habit_log").upsert({ user_id: user.id, habit_id: habitId, date });
+  } else {
+    await supabase.from("habit_log").delete().eq("habit_id", habitId).eq("date", date);
+  }
+  revalidatePath("/");
+  revalidatePath("/habits");
+}

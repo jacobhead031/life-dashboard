@@ -57,6 +57,7 @@ import { TargetsCard } from "@/components/cards/TargetsCard";
 import { SunriseSunsetCard } from "@/components/cards/SunriseSunsetCard";
 import { ReflectionCard } from "@/components/cards/ReflectionCard";
 import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
+import { HabitsCard } from "@/components/cards/HabitsCard";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -71,6 +72,9 @@ export default async function HomePage() {
 
   // Fetch all data in parallel — RLS ensures we only get this user's rows
   const todayStr = now.toISOString().split("T")[0];
+  const thirtyAgo = new Date(now);
+  thirtyAgo.setUTCDate(thirtyAgo.getUTCDate() - 30);
+  const thirtyAgoStr = thirtyAgo.toISOString().split("T")[0];
 
   const [
     { data: goals },
@@ -83,6 +87,8 @@ export default async function HomePage() {
     { data: birthdays },
     { data: ss },
     sunTimes,
+    { data: habits },
+    { data: habitLogs },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -115,6 +121,8 @@ export default async function HomePage() {
     supabase.from("recurring_date").select("*"),
     supabase.from("sunrise_sunset").select("*").eq("month", currentMonthStr).maybeSingle(),
     fetchTorontoSunTimes(todayStr),
+    supabase.from("habit").select("*").order("created_at"),
+    supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -169,7 +177,10 @@ export default async function HomePage() {
           notes={reflectionNotes ?? []}
         />
 
-        {/* Row 5 — birthdays (span 6) */}
+        {/* Row 5 — habits (span 6) */}
+        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={todayStr} />
+
+        {/* Row 6 — birthdays (span 6) */}
         <BirthdaysCard birthdays={birthdays ?? []} />
       </div>
     </div>
