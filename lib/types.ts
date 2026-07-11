@@ -82,6 +82,15 @@ export type ReflectionNote = {
   created_at: string;
 };
 
+export type WeeklyGoal = {
+  id: string;
+  user_id: string;
+  text: string;
+  week: string; // YYYY-MM-DD (Monday)
+  done: boolean;
+  created_at: string;
+};
+
 export type Habit = {
   id: string;
   user_id: string;

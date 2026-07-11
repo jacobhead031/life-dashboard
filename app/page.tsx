@@ -58,6 +58,7 @@ import { SunriseSunsetCard } from "@/components/cards/SunriseSunsetCard";
 import { ReflectionCard } from "@/components/cards/ReflectionCard";
 import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 import { HabitsCard } from "@/components/cards/HabitsCard";
+import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -72,6 +73,12 @@ export default async function HomePage() {
 
   // Fetch all data in parallel — RLS ensures we only get this user's rows
   const todayStr = now.toISOString().split("T")[0];
+  // Monday of current week
+  const dow = now.getUTCDay();
+  const weekMonday = new Date(now);
+  weekMonday.setUTCDate(now.getUTCDate() - (dow === 0 ? 6 : dow - 1));
+  const weekStr = weekMonday.toISOString().split("T")[0];
+
   const thirtyAgo = new Date(now);
   thirtyAgo.setUTCDate(thirtyAgo.getUTCDate() - 30);
   const thirtyAgoStr = thirtyAgo.toISOString().split("T")[0];
@@ -89,6 +96,7 @@ export default async function HomePage() {
     sunTimes,
     { data: habits },
     { data: habitLogs },
+    { data: weeklyGoals },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -123,6 +131,7 @@ export default async function HomePage() {
     fetchTorontoSunTimes(todayStr),
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
+    supabase.from("weekly_goal").select("*").eq("week", weekStr).order("created_at"),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -158,6 +167,9 @@ export default async function HomePage() {
       <div className="grid-bento">
         {/* Row 1 — habits (span 6) */}
         <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={todayStr} />
+
+        {/* Row 2 — weekly goals (span 6) */}
+        <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} />
 
         {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
         <MonthlyGoalsCard

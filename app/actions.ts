@@ -356,6 +356,28 @@ export async function deleteReflection(id: string) {
   revalidatePath("/");
 }
 
+// ── Weekly goals ─────────────────────────────────────────────
+
+export async function addWeeklyGoal(text: string, week: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("weekly_goal").insert({ user_id: user.id, text, week, done: false });
+  revalidatePath("/");
+}
+
+export async function toggleWeeklyGoal(id: string, done: boolean) {
+  const supabase = await createClient();
+  await supabase.from("weekly_goal").update({ done }).eq("id", id);
+  revalidatePath("/");
+}
+
+export async function deleteWeeklyGoal(id: string) {
+  const supabase = await createClient();
+  await supabase.from("weekly_goal").delete().eq("id", id);
+  revalidatePath("/");
+}
+
 // ── Habits ────────────────────────────────────────────────────
 
 export async function addHabit(name: string, color: string) {
