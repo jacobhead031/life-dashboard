@@ -16,6 +16,7 @@ export function WeeklyGoalsCard({
   useEffect(() => { setGoals(serverGoals); }, [serverGoals]);
 
   const [isPending, startTransition] = useTransition();
+  const [showAdd, setShowAdd] = useState(false);
   const [draft, setDraft] = useState("");
   const [targetDraft, setTargetDraft] = useState("");
   const textRef = useRef<HTMLInputElement>(null);
@@ -119,29 +120,43 @@ export function WeeklyGoalsCard({
       ))}
 
       {/* Add row */}
-      <div className="quick-add-row" style={{ marginTop: goals.length ? 8 : 0, display: "flex", gap: 8 }}>
-        <input
-          ref={textRef}
-          className="quick-add-input"
-          style={{ flex: 1 }}
-          placeholder="+ add a goal  (press Enter to save)"
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          disabled={isPending}
-        />
-        <input
-          className="quick-add-input"
-          style={{ width: 80 }}
-          type="number"
-          min={0}
-          placeholder="target?"
-          value={targetDraft}
-          onChange={(e) => setTargetDraft(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-          disabled={isPending}
-        />
-      </div>
+      {showAdd ? (
+        <div className="quick-add-row" style={{ marginTop: goals.length ? 8 : 0, display: "flex", gap: 8 }}>
+          <input
+            ref={textRef}
+            className="quick-add-input"
+            style={{ flex: 1 }}
+            placeholder="goal name"
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            disabled={isPending}
+            autoFocus
+          />
+          <input
+            className="quick-add-input"
+            style={{ width: 80 }}
+            type="number"
+            min={0}
+            placeholder="target?"
+            value={targetDraft}
+            onChange={(e) => setTargetDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+            disabled={isPending}
+          />
+          <button className="btn" onClick={() => { setShowAdd(false); setDraft(""); setTargetDraft(""); }}>
+            ✕
+          </button>
+        </div>
+      ) : (
+        <button
+          className="d-btn"
+          style={{ marginTop: goals.length ? 8 : 0 }}
+          onClick={() => setShowAdd(true)}
+        >
+          + add goal
+        </button>
+      )}
     </section>
   );
 }
