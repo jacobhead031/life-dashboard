@@ -9,24 +9,23 @@ export function WeeklyGoalsCard({
   weekStr,
 }: {
   goals: WeeklyGoal[];
-  weekStr: string; // Monday YYYY-MM-DD
+  weekStr: string;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [draft, setDraft] = useState("");
   const [isPending, startTransition] = useTransition();
+
   const [goals, applyOptimistic] = useOptimistic(
     initialGoals,
-    (state: WeeklyGoal[], patch: Partial<WeeklyGoal> & { id: string }) =>
-      patch.id === "new"
-        ? [...state, patch as WeeklyGoal]
-        : state.filter((g) => g.id !== patch.id).concat(
-            state.filter((g) => g.id === patch.id).map((g) => ({ ...g, ...patch }))
-          )
+    (state: WeeklyGoal[], action: { type: "toggle"; id: string; done: boolean } | { type: "delete"; id: string }) =>
+      action.type === "toggle"
+        ? state.map((g) => (g.id === action.id ? { ...g, done: action.done } : g))
+        : state.filter((g) => g.id !== action.id)
   );
 
   function handleToggle(g: WeeklyGoal) {
     startTransition(async () => {
-      applyOptimistic({ id: g.id, done: !g.done });
+      applyOptimistic({ type: "toggle", id: g.id, done: !g.done });
       await toggleWeeklyGoal(g.id, !g.done);
     });
   }
@@ -35,26 +34,23 @@ export function WeeklyGoalsCard({
     const text = draft.trim();
     if (!text) return;
     setDraft("");
-    startTransition(async () => {
-      applyOptimistic({ id: "new", user_id: "", text, week: weekStr, done: false, created_at: "" });
-      await addWeeklyGoal(text, weekStr);
-    });
+    startTransition(async () => { await addWeeklyGoal(text, weekStr); });
   }
 
   function handleDelete(id: string) {
     startTransition(async () => {
-      applyOptimistic({ id });
+      applyOptimistic({ type: "delete", id });
       await deleteWeeklyGoal(id);
     });
   }
 
   const done = goals.filter((g) => g.done).length;
-  const label = `${new Date(weekStr + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+  const weekLabel = new Date(weekStr + "T12:00:00Z").toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
   return (
     <section className="card span-6" style={{ animationDelay: ".05s" }}>
       <div className="card-label">
-        <span>this week · {label}{goals.length > 0 ? ` · ${done}/${goals.length}` : ""}</span>
+        <span>this week · {weekLabel}{goals.length > 0 ? ` · ${done}/${goals.length}` : ""}</span>
       </div>
 
       {goals.map((g) => (
