@@ -88,6 +88,8 @@ export type WeeklyGoal = {
   text: string;
   week: string; // YYYY-MM-DD (Monday)
   done: boolean;
+  target: number; // 0 = checkbox, >0 = progress goal
+  current: number;
   created_at: string;
 };
 
