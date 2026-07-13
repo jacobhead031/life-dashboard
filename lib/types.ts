@@ -123,7 +123,7 @@ export type Project = {
   user_id: string;
   title: string;
   area: "career" | "personal";
-  status: "active" | "warm" | "cold" | "seed";
+  status: "active" | "seed" | "done";
   next_action: string | null;
   why: string | null;
   repo_url: string | null;

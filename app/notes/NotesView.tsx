@@ -29,15 +29,30 @@ function ProjectRow({ project: p }: { project: Project }) {
   );
 }
 
+function TitleList({ projects }: { projects: Project[] }) {
+  return (
+    <div className="card" style={{ padding: "4px 18px", marginBottom: 8 }}>
+      {projects.map((p) => (
+        <div key={p.id} className="seed-row">
+          <span className={`area-badge ${p.area}`}>{p.area}</span>
+          <Link href={`/notes/${p.id}`} style={{ color: "inherit", textDecoration: "none", fontSize: "13.5px" }}>
+            {p.title}
+          </Link>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function NotesView({
   active,
-  warm,
   seeds,
+  done,
   inbox,
 }: {
   active: Project[];
-  warm: Project[];
   seeds: Project[];
+  done: Project[];
   inbox: Note[];
 }) {
   const [draft, setDraft] = useState("");
@@ -57,7 +72,7 @@ export function NotesView({
     });
   }
 
-  const inboxPreview = inbox.slice(0, 3);
+  const isEmpty = active.length === 0 && seeds.length === 0 && done.length === 0 && inbox.length === 0;
 
   return (
     <>
@@ -84,7 +99,7 @@ export function NotesView({
             <Link href="/notes/sort" className="card-nav">sort →</Link>
           </div>
           <div className="card" style={{ padding: "4px 18px", marginBottom: 8 }}>
-            {inboxPreview.map((n) => (
+            {inbox.slice(0, 3).map((n) => (
               <div key={n.id} className="inbox-note">{n.body}</div>
             ))}
             {inbox.length > 3 && (
@@ -96,7 +111,7 @@ export function NotesView({
         </>
       )}
 
-      {/* Active projects */}
+      {/* Active */}
       {active.length > 0 && (
         <>
           <div className="notes-section-hd"><span>active</span></div>
@@ -104,28 +119,25 @@ export function NotesView({
         </>
       )}
 
-      {/* Warm projects */}
-      {warm.length > 0 && (
-        <>
-          <div className="notes-section-hd"><span>warm</span></div>
-          {warm.map((p) => <ProjectRow key={p.id} project={p} />)}
-        </>
-      )}
-
       {/* Seeds */}
       {seeds.length > 0 && (
         <>
+          <div className="notes-section-hd"><span>seeds · {seeds.length}</span></div>
+          <TitleList projects={seeds} />
+        </>
+      )}
+
+      {/* Done */}
+      {done.length > 0 && (
+        <>
           <div className="notes-section-hd">
-            <span>seeds · {seeds.length}</span>
-            {seeds.length > 5 && (
-              <Link href="/notes/all" className="card-nav">view all →</Link>
-            )}
+            <span style={{ color: "var(--muted-2)" }}>done · {done.length}</span>
           </div>
-          <div className="card" style={{ padding: "4px 18px", marginBottom: 8 }}>
-            {seeds.slice(0, 5).map((p) => (
+          <div className="card" style={{ padding: "4px 18px", marginBottom: 8, opacity: 0.6 }}>
+            {done.map((p) => (
               <div key={p.id} className="seed-row">
                 <span className={`area-badge ${p.area}`}>{p.area}</span>
-                <Link href={`/notes/${p.id}`} style={{ color: "inherit", textDecoration: "none", fontSize: "13.5px" }}>
+                <Link href={`/notes/${p.id}`} style={{ color: "var(--muted)", textDecoration: "none", fontSize: "13.5px" }}>
                   {p.title}
                 </Link>
               </div>
@@ -134,8 +146,7 @@ export function NotesView({
         </>
       )}
 
-      {/* Empty state */}
-      {active.length === 0 && warm.length === 0 && seeds.length === 0 && inbox.length === 0 && (
+      {isEmpty && (
         <div style={{ color: "var(--muted-2)", fontSize: "13.5px", paddingTop: 24 }}>
           Nothing here yet — capture a thought above to get started.
         </div>

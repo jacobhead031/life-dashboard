@@ -404,10 +404,16 @@ export async function deleteHabit(id: string) {
 
 // ── Notes / Projects ─────────────────────────────────────────
 
+export async function deleteProject(id: string) {
+  const supabase = await createClient();
+  await supabase.from("projects").delete().eq("id", id);
+  revalidatePath("/notes");
+}
+
 export async function updateProject(id: string, data: {
   title?: string;
   area?: "career" | "personal";
-  status?: "active" | "warm" | "cold" | "seed";
+  status?: "active" | "seed" | "done";
   next_action?: string | null;
   why?: string | null;
   repo_url?: string | null;

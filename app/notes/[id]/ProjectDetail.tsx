@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { updateProject, addProjectNote, recordProjectFile, deleteProjectFile } from "@/app/actions";
+import { updateProject, addProjectNote, recordProjectFile, deleteProjectFile, deleteProject } from "@/app/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Note, ProjectFile } from "@/lib/types";
 
@@ -127,9 +127,8 @@ export function ProjectDetail({
           onChange={(e) => { setStatus(e.target.value as Project["status"]); save({ status: e.target.value as Project["status"] }); }}
         >
           <option value="active">active</option>
-          <option value="warm">warm</option>
-          <option value="cold">cold</option>
           <option value="seed">seed</option>
+          <option value="done">done</option>
         </select>
         <span style={{ marginLeft: "auto", fontFamily: "var(--font-space-mono)", fontSize: "11px", color: "var(--muted-2)" }}>
           touched {relTime(initial.touched_at)}
@@ -286,6 +285,26 @@ export function ProjectDetail({
           disabled={uploading}
         >
           {uploading ? "uploading…" : "↑ attach file"}
+        </button>
+      </div>
+
+      <hr className="project-divider" />
+
+      {/* Delete project */}
+      <div style={{ paddingBottom: 40 }}>
+        <button
+          className="d-btn danger"
+          style={{ opacity: 0.5 }}
+          onClick={() => {
+            if (!confirm(`Delete "${initial.title}"? This can't be undone.`)) return;
+            startTransition(async () => {
+              await deleteProject(initial.id);
+              router.push("/notes");
+            });
+          }}
+          disabled={isPending}
+        >
+          delete project
         </button>
       </div>
     </>

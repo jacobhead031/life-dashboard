@@ -12,7 +12,7 @@ export default async function NotesPage() {
     supabase
       .from("projects")
       .select("*")
-      .in("status", ["active", "warm", "seed"])
+      .in("status", ["active", "seed", "done"])
       .order("touched_at", { ascending: false }),
     supabase
       .from("notes")
@@ -22,8 +22,8 @@ export default async function NotesPage() {
   ]);
 
   const active = (projects ?? []).filter((p) => p.status === "active");
-  const warm   = (projects ?? []).filter((p) => p.status === "warm");
   const seeds  = (projects ?? []).filter((p) => p.status === "seed");
+  const done   = (projects ?? []).filter((p) => p.status === "done");
 
   return (
     <div className="wrap">
@@ -32,8 +32,8 @@ export default async function NotesPage() {
       </div>
       <NotesView
         active={active}
-        warm={warm}
         seeds={seeds}
+        done={done}
         inbox={allInbox ?? []}
       />
     </div>

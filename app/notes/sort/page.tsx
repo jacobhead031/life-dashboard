@@ -10,7 +10,7 @@ export default async function SortPage() {
 
   const [{ data: inbox }, { data: projects }] = await Promise.all([
     supabase.from("notes").select("*").is("project_id", null).order("created_at", { ascending: true }),
-    supabase.from("projects").select("id, title, area, status").not("status", "eq", "cold").order("title"),
+    supabase.from("projects").select("id, title, area, status").not("status", "eq", "done").order("title"),
   ]);
 
   if (!inbox?.length) redirect("/notes");

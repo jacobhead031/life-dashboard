@@ -107,7 +107,7 @@ export default async function HomePage() {
     supabase
       .from("projects")
       .select("*")
-      .in("status", ["active", "warm"])
+      .eq("status", "active")
       .order("touched_at", { ascending: true }),
     supabase
       .from("book")
