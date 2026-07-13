@@ -117,3 +117,37 @@ export type SunriseSunset = {
   sunset_done: boolean;
   updated_at: string;
 };
+
+export type Project = {
+  id: string;
+  user_id: string;
+  title: string;
+  area: "career" | "personal";
+  status: "active" | "warm" | "cold" | "seed";
+  next_action: string | null;
+  why: string | null;
+  repo_url: string | null;
+  live_url: string | null;
+  created_at: string;
+  updated_at: string;
+  touched_at: string;
+};
+
+export type Note = {
+  id: string;
+  user_id: string;
+  project_id: string | null;
+  body: string;
+  source: string;
+  created_at: string;
+};
+
+export type ProjectFile = {
+  id: string;
+  user_id: string;
+  project_id: string;
+  name: string;
+  path: string;
+  size: number;
+  created_at: string;
+};

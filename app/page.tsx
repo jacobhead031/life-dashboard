@@ -59,6 +59,7 @@ import { ReflectionCard } from "@/components/cards/ReflectionCard";
 import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 import { HabitsCard } from "@/components/cards/HabitsCard";
 import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
+import { TabNav } from "@/components/TabNav";
 
 export default async function HomePage() {
   const supabase = await createClient();
@@ -85,7 +86,7 @@ export default async function HomePage() {
 
   const [
     { data: goals },
-    { data: ideas },
+    { data: liveProjects },
     { data: books },
     { data: tracks },
     { data: targets },
@@ -104,10 +105,10 @@ export default async function HomePage() {
       .eq("month", currentMonthStr)
       .order("created_at"),
     supabase
-      .from("idea")
+      .from("projects")
       .select("*")
-      .eq("archived", false)
-      .order("updated_at", { ascending: false }),
+      .in("status", ["active", "warm"])
+      .order("touched_at", { ascending: true }),
     supabase
       .from("book")
       .select("*")
@@ -154,6 +155,8 @@ export default async function HomePage() {
       </div>
       <div className="rule" />
 
+      <TabNav active="dashboard" />
+
       {/* ── Birthday banner (conditional) ──────────────────── */}
       {upcoming && (
         <BirthdayBanner
@@ -176,7 +179,7 @@ export default async function HomePage() {
           goals={goals ?? []}
           currentMonthStr={currentMonthStr}
         />
-        <StartSomethingCard ideas={ideas ?? []} />
+        <StartSomethingCard projects={liveProjects ?? []} />
 
         {/* Row 3 — books (span 3) + learning (span 3) */}
         <BooksCard books={books ?? []} finishedThisYear={finishedThisYear} />

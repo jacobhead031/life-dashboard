@@ -2,58 +2,58 @@
 
 import Link from "next/link";
 import { useState, useCallback } from "react";
-import type { Idea } from "@/lib/types";
+import type { Project } from "@/lib/types";
 
-export function StartSomethingCard({ ideas }: { ideas: Idea[] }) {
-  const [idx, setIdx] = useState(() =>
-    ideas.length > 0 ? Math.floor(Math.random() * ideas.length) : -1
-  );
+export function StartSomethingCard({ projects }: { projects: Project[] }) {
+  const [idx, setIdx] = useState(0);
 
   const shuffle = useCallback(() => {
-    if (ideas.length <= 1) return;
-    let next: number;
-    do {
-      next = Math.floor(Math.random() * ideas.length);
-    } while (next === idx);
-    setIdx(next);
-  }, [ideas.length, idx]);
+    if (projects.length <= 1) return;
+    setIdx((i) => {
+      let next: number;
+      do { next = Math.floor(Math.random() * projects.length); } while (next === i);
+      return next;
+    });
+  }, [projects.length]);
 
-  const idea = idx >= 0 ? ideas[idx] : null;
+  const project = projects[idx] ?? null;
 
   return (
     <section className="card span-4 hero" style={{ animationDelay: ".06s" }}>
-      <div className="card-label">got a minute?</div>
-      <h2>Start something</h2>
+      <div className="card-label">what&apos;s next?</div>
+      <h2>Pick something up</h2>
       <p className="sub">
-        Nothing pressing? Here&rsquo;s one thing you could pick up right now.
+        The project you&apos;ve touched least recently — so nothing gets forgotten.
       </p>
 
       <div className="pick">
-        {idea ? (
+        {project ? (
           <>
-            <span className="tag">{idea.tag}</span>
-            <span className="what">{idea.text}</span>
-            {idea.effort && <span className="meta">{idea.effort}</span>}
+            <span className={`area-badge ${project.area}`} style={{ fontSize: "10px" }}>{project.area}</span>
+            <span className="what">{project.next_action ?? project.title}</span>
+            {!project.next_action && (
+              <span className="meta" style={{ fontStyle: "italic", color: "var(--muted-2)" }}>no next action set</span>
+            )}
           </>
         ) : (
           <span className="what" style={{ color: "var(--muted)" }}>
-            No ideas yet — add the first thing you&rsquo;d pick up when bored.
+            No active projects — add one in notes.
           </span>
         )}
       </div>
 
       <div className="hero-actions">
-        {idea && (
+        {project && (
           <button
             className="btn primary"
             onClick={shuffle}
-            disabled={ideas.length <= 1}
+            disabled={projects.length <= 1}
           >
             ⟳&nbsp;&nbsp;Shuffle
           </button>
         )}
-        <Link href="/ideas" className="btn">
-          See all ideas
+        <Link href="/notes" className="btn">
+          Open notes
         </Link>
       </div>
     </section>

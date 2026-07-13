@@ -402,6 +402,88 @@ export async function deleteHabit(id: string) {
   revalidatePath("/");
 }
 
+// ── Notes / Projects ─────────────────────────────────────────
+
+export async function updateProject(id: string, data: {
+  title?: string;
+  area?: "career" | "personal";
+  status?: "active" | "warm" | "cold" | "seed";
+  next_action?: string | null;
+  why?: string | null;
+  repo_url?: string | null;
+  live_url?: string | null;
+}) {
+  const supabase = await createClient();
+  const update: Record<string, unknown> = { ...data };
+  if ("next_action" in data) update.touched_at = new Date().toISOString();
+  await supabase.from("projects").update(update).eq("id", id);
+  revalidatePath("/notes");
+  revalidatePath(`/notes/${id}`);
+}
+
+export async function addProjectNote(projectId: string, body: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("notes").insert({ user_id: user.id, project_id: projectId, body, source: "manual" });
+  await supabase.from("projects").update({ touched_at: new Date().toISOString() }).eq("id", projectId);
+  revalidatePath(`/notes/${projectId}`);
+  revalidatePath("/notes");
+}
+
+export async function recordProjectFile(projectId: string, name: string, path: string, size: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("project_files").insert({ user_id: user.id, project_id: projectId, name, path, size });
+  revalidatePath(`/notes/${projectId}`);
+}
+
+export async function deleteProjectFile(id: string) {
+  const supabase = await createClient();
+  await supabase.from("project_files").delete().eq("id", id);
+  revalidatePath("/notes");
+}
+
+export async function assignNoteToProject(noteId: string, projectId: string) {
+  const supabase = await createClient();
+  await supabase.from("notes").update({ project_id: projectId }).eq("id", noteId);
+  await supabase.from("projects").update({ touched_at: new Date().toISOString() }).eq("id", projectId);
+  revalidatePath("/notes");
+  revalidatePath("/notes/sort");
+}
+
+export async function promoteNoteToProject(noteId: string, title: string, area: "career" | "personal") {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const { data: project } = await supabase
+    .from("projects")
+    .insert({ user_id: user.id, title, area, status: "seed", touched_at: new Date().toISOString() })
+    .select()
+    .single();
+  if (project) {
+    await supabase.from("notes").update({ project_id: project.id }).eq("id", noteId);
+  }
+  revalidatePath("/notes");
+  revalidatePath("/notes/sort");
+}
+
+export async function deleteNote(noteId: string) {
+  const supabase = await createClient();
+  await supabase.from("notes").delete().eq("id", noteId);
+  revalidatePath("/notes");
+  revalidatePath("/notes/sort");
+}
+
+export async function quickCapture(body: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("notes").insert({ user_id: user.id, body, source: "quick-capture", project_id: null });
+  revalidatePath("/notes");
+}
+
 export async function toggleHabitLog(habitId: string, date: string, isDone: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
