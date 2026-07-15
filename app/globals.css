@@ -1451,6 +1451,16 @@ body {
   border-bottom: 1px solid var(--line);
 }
 .note-stream-item:last-child { border-bottom: none; }
+.note-stream-item.done .note-stream-body {
+  text-decoration: line-through;
+  color: var(--muted-2);
+}
+.todo-check {
+  accent-color: var(--amber);
+  margin-top: 4px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
 .note-stream-body { flex: 1; font-size: 13.5px; color: var(--muted); line-height: 1.6; }
 .note-stream-time {
   font-family: var(--font-space-mono), monospace;

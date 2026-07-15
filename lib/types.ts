@@ -139,6 +139,7 @@ export type Note = {
   project_id: string | null;
   body: string;
   source: string;
+  done: boolean;
   created_at: string;
 };
 

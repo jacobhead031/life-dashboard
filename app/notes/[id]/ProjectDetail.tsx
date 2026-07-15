@@ -2,7 +2,7 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { updateProject, addProjectNote, recordProjectFile, deleteProjectFile, deleteProject } from "@/app/actions";
+import { updateProject, addProjectNote, toggleNote, deleteNote, recordProjectFile, deleteProjectFile, deleteProject } from "@/app/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Note, ProjectFile } from "@/lib/types";
 
@@ -64,11 +64,21 @@ export function ProjectDetail({
     if (!text) return;
     const temp: Note = {
       id: "temp-" + Date.now(), user_id: "", project_id: initial.id,
-      body: text, source: "manual", created_at: new Date().toISOString(),
+      body: text, source: "manual", done: false, created_at: new Date().toISOString(),
     };
     setNotes((prev) => [temp, ...prev]);
     setNoteDraft("");
     startTransition(async () => { await addProjectNote(initial.id, text); });
+  }
+
+  function handleToggleNote(id: string, done: boolean) {
+    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, done } : n)));
+    startTransition(async () => { await toggleNote(id, done); });
+  }
+
+  function handleDeleteNote(id: string) {
+    setNotes((prev) => prev.filter((n) => n.id !== id));
+    startTransition(async () => { await deleteNote(id); });
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
@@ -96,6 +106,7 @@ export function ProjectDetail({
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const todoCount = notes.filter((n) => !n.done).length;
 
   return (
     <>
@@ -204,28 +215,43 @@ export function ProjectDetail({
 
       <hr className="project-divider" />
 
-      {/* Notes stream */}
+      {/* To-do list */}
       <div className="project-section">
         <div className="project-section-label">
-          notes{notes.length > 0 ? ` · ${notes.length}` : ""}
+          to do{todoCount > 0 ? ` · ${todoCount}` : ""}
         </div>
         {notes.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            {notes.map((n) => (
+            {[...notes.filter((n) => !n.done), ...notes.filter((n) => n.done)].map((n) => (
               <div
                 key={n.id}
-                className="note-stream-item"
+                className={`note-stream-item${n.done ? " done" : ""}`}
                 style={{ opacity: n.id.startsWith("temp-") ? 0.5 : 1 }}
               >
+                <input
+                  type="checkbox"
+                  className="todo-check"
+                  checked={n.done}
+                  onChange={(e) => handleToggleNote(n.id, e.target.checked)}
+                  disabled={n.id.startsWith("temp-")}
+                />
                 <div className="note-stream-body">{n.body}</div>
                 <div className="note-stream-time">{relTime(n.created_at)}</div>
+                <button
+                  className="d-btn danger"
+                  style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
+                  onClick={() => handleDeleteNote(n.id)}
+                  disabled={n.id.startsWith("temp-")}
+                >
+                  ✕
+                </button>
               </div>
             ))}
           </div>
         )}
         <textarea
           className="note-add-area"
-          placeholder="add a note… (⌘↵ to save)"
+          placeholder="add a to-do… (⌘↵ to save)"
           value={noteDraft}
           onChange={(e) => setNoteDraft(e.target.value)}
           onKeyDown={(e) => {
@@ -237,7 +263,7 @@ export function ProjectDetail({
           onClick={handleAddNote}
           disabled={isPending || !noteDraft.trim()}
         >
-          add note
+          add
         </button>
       </div>
 

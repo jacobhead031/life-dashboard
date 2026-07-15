@@ -437,6 +437,12 @@ export async function addProjectNote(projectId: string, body: string) {
   revalidatePath("/notes");
 }
 
+export async function toggleNote(noteId: string, done: boolean) {
+  const supabase = await createClient();
+  await supabase.from("notes").update({ done }).eq("id", noteId);
+  revalidatePath("/notes");
+}
+
 export async function recordProjectFile(projectId: string, name: string, path: string, size: number) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

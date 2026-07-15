@@ -16,9 +16,10 @@ created_at timestamptz, updated_at timestamptz, touched_at timestamptz
 ### `notes`
 ```sql
 id uuid, user_id uuid, project_id uuid (nullable), body text,
-source text, created_at timestamptz
+source text, done boolean (default false), created_at timestamptz
 ```
 - `source` values: `manual | quick-capture | claude-code`
+- `done` — notes on a project page render as a to-do list; checked = done
 
 ### `project_files`
 ```sql
