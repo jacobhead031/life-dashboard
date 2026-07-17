@@ -1547,3 +1547,66 @@ body {
 }
 .sort-status-pill.active { color: var(--green); }
 .sort-status-pill.warm   { color: var(--amber); }
+
+/* ─── Health tab ─────────────────────────────────────────────── */
+.stat-num {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 34px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  line-height: 1.1;
+}
+.stat-delta {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 13px;
+  color: var(--muted);
+  margin-left: 8px;
+}
+.stat-sub {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 6px;
+}
+.health-empty { font-size: 13.5px; color: var(--muted); }
+.spark-wrap { display: flex; flex-direction: column; gap: 8px; }
+.spark-svg { width: 100%; height: auto; display: block; cursor: crosshair; }
+.spark-foot {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-space-mono), monospace;
+  font-size: 10.5px;
+  color: var(--muted-2);
+  min-height: 14px;
+}
+.rec-list { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.rec-item { display: flex; align-items: baseline; gap: 12px; font-size: 14.5px; }
+.rec-num {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 11px;
+  color: var(--base);
+  background: linear-gradient(92deg, var(--amber), var(--coral));
+  border-radius: 6px;
+  padding: 2px 7px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.health-strip {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+.health-strip .hs-item { display: flex; flex-direction: column; gap: 3px; }
+.hs-val {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 21px;
+  font-weight: 600;
+}
+.hs-label {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--muted-2);
+}

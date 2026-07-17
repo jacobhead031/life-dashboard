@@ -59,6 +59,7 @@ import { ReflectionCard } from "@/components/cards/ReflectionCard";
 import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 import { HabitsCard } from "@/components/cards/HabitsCard";
 import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
+import { HealthCard } from "@/components/cards/HealthCard";
 import { TabNav } from "@/components/TabNav";
 
 export default async function HomePage() {
@@ -98,6 +99,8 @@ export default async function HomePage() {
     { data: habits },
     { data: habitLogs },
     { data: weeklyGoals },
+    { data: healthDays },
+    { data: healthWeights },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -136,6 +139,18 @@ export default async function HomePage() {
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
     supabase.from("weekly_goal").select("*").eq("week", weekStr).order("created_at"),
+    supabase
+      .from("health_day")
+      .select("*")
+      .not("recovery_pct", "is", null)
+      .order("date", { ascending: false })
+      .limit(1),
+    supabase
+      .from("health_day")
+      .select("date, weight")
+      .not("weight", "is", null)
+      .order("date", { ascending: false })
+      .limit(1),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -176,6 +191,9 @@ export default async function HomePage() {
 
         {/* Row 2 — weekly goals (span 6) */}
         <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} />
+
+        {/* Row 3 — health strip (span 6) */}
+        <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} />
 
         {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
         <MonthlyGoalsCard

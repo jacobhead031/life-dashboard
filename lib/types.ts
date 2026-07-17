@@ -152,3 +152,26 @@ export type ProjectFile = {
   size: number;
   created_at: string;
 };
+
+export type HealthDay = {
+  user_id: string;
+  date: string; // YYYY-MM-DD
+  recovery_pct: number | null;
+  hrv: number | null;
+  rhr: number | null;
+  sleep_hours: number | null;
+  strain: number | null;
+  calories: number | null;
+  protein: number | null;
+  fat: number | null;
+  carbs: number | null;
+  weight: number | null;
+  updated_at: string;
+};
+
+export type HealthRecs = {
+  user_id: string;
+  week_of: string; // YYYY-MM-DD (Sunday)
+  recs: string[];
+  updated_at: string;
+};
