@@ -142,8 +142,9 @@ export function HealthContent({
   latestRecs: HealthRecs | null;
 }) {
   const latest = [...days].reverse();
-  const lastRecovery = latest.find((d) => d.recovery_pct !== null);
-  const lastSleep = latest.find((d) => d.sleep_hours !== null);
+  // One row drives both tiles so recovery and sleep always show the same
+  // morning (recovery is scored off that night's sleep).
+  const morning = latest.find((d) => d.recovery_pct !== null || d.sleep_hours !== null);
   const lastWeight = weighIns[weighIns.length - 1];
   const prevWeight = weighIns[weighIns.length - 2];
   const weightDelta = lastWeight && prevWeight ? lastWeight.weight - prevWeight.weight : null;
@@ -189,33 +190,33 @@ export function HealthContent({
       {/* ── Stat tiles ── */}
       <section className="card span-2" style={{ animationDelay: ".05s" }}>
         <div className="card-label"><span>recovery</span></div>
-        {lastRecovery ? (
+        {morning?.recovery_pct != null ? (
           <>
-            <div className="stat-num" style={{ color: recoveryColor(lastRecovery.recovery_pct!) }}>
-              {Math.round(lastRecovery.recovery_pct!)}%
+            <div className="stat-num" style={{ color: recoveryColor(morning.recovery_pct) }}>
+              {Math.round(morning.recovery_pct)}%
             </div>
             <div className="stat-sub">
-              {fmtDate(lastRecovery.date)} · HRV {Math.round(lastRecovery.hrv ?? 0)} ms · RHR{" "}
-              {Math.round(lastRecovery.rhr ?? 0)} bpm
+              {fmtDate(morning.date)} · HRV {Math.round(morning.hrv ?? 0)} ms · RHR{" "}
+              {Math.round(morning.rhr ?? 0)} bpm
             </div>
           </>
         ) : (
-          <p className="health-empty">No data.</p>
+          <p className="health-empty">Not scored yet.</p>
         )}
       </section>
 
       <section className="card span-2" style={{ animationDelay: ".08s" }}>
         <div className="card-label"><span>sleep</span></div>
-        {lastSleep ? (
+        {morning?.sleep_hours != null ? (
           <>
-            <div className="stat-num">{lastSleep.sleep_hours!.toFixed(1)}h</div>
+            <div className="stat-num">{morning.sleep_hours.toFixed(1)}h</div>
             <div className="stat-sub">
-              {fmtDate(lastSleep.date)}
+              {fmtDate(morning.date)}
               {sleepAvg ? ` · 28d avg ${sleepAvg.toFixed(1)}h` : ""}
             </div>
           </>
         ) : (
-          <p className="health-empty">No data.</p>
+          <p className="health-empty">Not scored yet.</p>
         )}
       </section>
 
