@@ -35,7 +35,6 @@ export function ProjectDetail({
   const [title, setTitle]           = useState(initial.title);
   const [area, setArea]             = useState(initial.area);
   const [status, setStatus]         = useState(initial.status);
-  const [nextAction, setNextAction] = useState(initial.next_action ?? "");
   const [why, setWhy]               = useState(initial.why ?? "");
   const [repoUrl, setRepoUrl]       = useState(initial.repo_url ?? "");
   const [liveUrl, setLiveUrl]       = useState(initial.live_url ?? "");
@@ -151,70 +150,6 @@ export function ProjectDetail({
         )}
       </div>
 
-      {/* Next action */}
-      <div className="project-section">
-        <div className="project-section-label">next action</div>
-        <input
-          className="project-next-input"
-          placeholder="what's the very next thing to do?"
-          value={nextAction}
-          onChange={(e) => setNextAction(e.target.value)}
-          onBlur={() => {
-            const v = nextAction.trim() || null;
-            if (v !== (initial.next_action ?? null)) save({ next_action: v }, "next action saved");
-          }}
-          onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-        />
-      </div>
-
-      {/* Why */}
-      <div className="project-section">
-        <div className="project-section-label">why</div>
-        <textarea
-          className="project-why-input"
-          placeholder="what's the real reason this matters?"
-          value={why}
-          onChange={(e) => setWhy(e.target.value)}
-          onBlur={() => {
-            const v = why.trim() || null;
-            if (v !== (initial.why ?? null)) save({ why: v });
-          }}
-          rows={3}
-        />
-      </div>
-
-      {/* Links */}
-      <div className="project-section" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
-        <div>
-          <div className="project-section-label" style={{ marginBottom: 4 }}>repo</div>
-          <input
-            className="project-link-input"
-            placeholder="https://github.com/…"
-            value={repoUrl}
-            onChange={(e) => setRepoUrl(e.target.value)}
-            onBlur={() => {
-              const v = repoUrl.trim() || null;
-              if (v !== (initial.repo_url ?? null)) save({ repo_url: v });
-            }}
-          />
-        </div>
-        <div>
-          <div className="project-section-label" style={{ marginBottom: 4 }}>live</div>
-          <input
-            className="project-link-input"
-            placeholder="https://…"
-            value={liveUrl}
-            onChange={(e) => setLiveUrl(e.target.value)}
-            onBlur={() => {
-              const v = liveUrl.trim() || null;
-              if (v !== (initial.live_url ?? null)) save({ live_url: v });
-            }}
-          />
-        </div>
-      </div>
-
-      <hr className="project-divider" />
-
       {/* To-do list */}
       <div className="project-section">
         <div className="project-section-label">
@@ -265,6 +200,54 @@ export function ProjectDetail({
         >
           add
         </button>
+      </div>
+
+      <hr className="project-divider" />
+
+      {/* Why */}
+      <div className="project-section">
+        <div className="project-section-label">why</div>
+        <textarea
+          className="project-why-input"
+          placeholder="what's the real reason this matters?"
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          onBlur={() => {
+            const v = why.trim() || null;
+            if (v !== (initial.why ?? null)) save({ why: v });
+          }}
+          rows={3}
+        />
+      </div>
+
+      {/* Links */}
+      <div className="project-section" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <div>
+          <div className="project-section-label" style={{ marginBottom: 4 }}>repo</div>
+          <input
+            className="project-link-input"
+            placeholder="https://github.com/…"
+            value={repoUrl}
+            onChange={(e) => setRepoUrl(e.target.value)}
+            onBlur={() => {
+              const v = repoUrl.trim() || null;
+              if (v !== (initial.repo_url ?? null)) save({ repo_url: v });
+            }}
+          />
+        </div>
+        <div>
+          <div className="project-section-label" style={{ marginBottom: 4 }}>live</div>
+          <input
+            className="project-link-input"
+            placeholder="https://…"
+            value={liveUrl}
+            onChange={(e) => setLiveUrl(e.target.value)}
+            onBlur={() => {
+              const v = liveUrl.trim() || null;
+              if (v !== (initial.live_url ?? null)) save({ live_url: v });
+            }}
+          />
+        </div>
       </div>
 
       <hr className="project-divider" />

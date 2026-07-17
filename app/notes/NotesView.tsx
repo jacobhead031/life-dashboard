@@ -12,7 +12,7 @@ function relTime(iso: string): string {
   return `${Math.floor(d / 30)}mo ago`;
 }
 
-function ProjectRow({ project: p }: { project: Project }) {
+function ProjectRow({ project: p }: { project: Project & { notes?: { body: string }[] } }) {
   return (
     <Link href={`/notes/${p.id}`} className="project-row">
       <div className="project-row-top">
@@ -20,10 +20,10 @@ function ProjectRow({ project: p }: { project: Project }) {
         <span className="project-title">{p.title}</span>
         <span className="project-time">{relTime(p.touched_at)}</span>
       </div>
-      {p.next_action ? (
-        <div className="project-next">{p.next_action}</div>
+      {p.notes?.[0] ? (
+        <div className="project-next">{p.notes[0].body}</div>
       ) : (
-        <div className="project-next missing">set next action →</div>
+        <div className="project-next missing">add a to-do →</div>
       )}
     </Link>
   );

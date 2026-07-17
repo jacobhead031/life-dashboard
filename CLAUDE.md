@@ -31,6 +31,7 @@ size bigint, created_at timestamptz
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.
 - **`touched_at` ≠ `updated_at`.** `touched_at` moves ONLY when: (1) a note is attached to the project, or (2) `next_action` changes. Editing title/why/links must NOT move `touched_at`. This prevents stale projects masquerading as active.
+- **`next_action` is retired from the UI.** The column still exists but nothing reads or writes it anymore. "What's next" everywhere (project page, home card, projects list) is the newest unchecked to-do (`notes` where `done = false`).
 - **Active/warm projects order by `touched_at ASC`** on the home card — surface the stalest live project so nothing gets forgotten.
 - **`cold` projects** are hidden from the main `/notes` view. Reachable via filter only.
 

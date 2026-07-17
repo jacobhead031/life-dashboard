@@ -11,9 +11,12 @@ export default async function NotesPage() {
   const [{ data: projects }, { data: allInbox }] = await Promise.all([
     supabase
       .from("projects")
-      .select("*")
+      .select("*, notes(body)")
       .in("status", ["active", "seed", "done"])
-      .order("touched_at", { ascending: false }),
+      .eq("notes.done", false)
+      .order("touched_at", { ascending: false })
+      .order("created_at", { referencedTable: "notes", ascending: false })
+      .limit(1, { referencedTable: "notes" }),
     supabase
       .from("notes")
       .select("*")

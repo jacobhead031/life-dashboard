@@ -106,9 +106,12 @@ export default async function HomePage() {
       .order("created_at"),
     supabase
       .from("projects")
-      .select("*")
+      .select("*, notes(body)")
       .eq("status", "active")
-      .order("touched_at", { ascending: true }),
+      .eq("notes.done", false)
+      .order("touched_at", { ascending: true })
+      .order("created_at", { referencedTable: "notes", ascending: false })
+      .limit(1, { referencedTable: "notes" }),
     supabase
       .from("book")
       .select("*")

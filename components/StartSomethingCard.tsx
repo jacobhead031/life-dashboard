@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, useCallback } from "react";
 import type { Project } from "@/lib/types";
 
-export function StartSomethingCard({ projects }: { projects: Project[] }) {
+export function StartSomethingCard({ projects }: { projects: (Project & { notes?: { body: string }[] })[] }) {
   const [idx, setIdx] = useState(0);
 
   const shuffle = useCallback(() => {
@@ -30,9 +30,9 @@ export function StartSomethingCard({ projects }: { projects: Project[] }) {
         {project ? (
           <>
             <span className={`area-badge ${project.area}`} style={{ fontSize: "10px" }}>{project.area}</span>
-            <span className="what">{project.next_action ?? project.title}</span>
-            {!project.next_action && (
-              <span className="meta" style={{ fontStyle: "italic", color: "var(--muted-2)" }}>no next action set</span>
+            <span className="what">{project.notes?.[0]?.body ?? project.title}</span>
+            {!project.notes?.[0] && (
+              <span className="meta" style={{ fontStyle: "italic", color: "var(--muted-2)" }}>no to-dos yet</span>
             )}
           </>
         ) : (
