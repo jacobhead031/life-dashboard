@@ -157,6 +157,7 @@ export type BudgetCategory = {
   id: string;
   user_id: string;
   name: string;
+  budget: number | null; // monthly limit, null = not set
   created_at: string;
 };
 

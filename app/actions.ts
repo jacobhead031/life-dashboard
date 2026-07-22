@@ -517,11 +517,17 @@ export async function deleteExpense(id: string) {
   revalidatePath("/budget");
 }
 
-export async function addCategory(name: string) {
+export async function addCategory(name: string, budget?: number | null) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase.from("budget_categories").insert({ user_id: user.id, name });
+  await supabase.from("budget_categories").insert({ user_id: user.id, name, budget: budget ?? null });
+  revalidatePath("/budget");
+}
+
+export async function setCategoryBudget(id: string, budget: number | null) {
+  const supabase = await createClient();
+  await supabase.from("budget_categories").update({ budget }).eq("id", id);
   revalidatePath("/budget");
 }
 

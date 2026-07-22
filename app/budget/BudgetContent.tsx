@@ -7,12 +7,34 @@ import {
   addCategory,
   renameCategory,
   deleteCategory,
+  setCategoryBudget,
   setAllowance,
   seedDefaultCategories,
 } from "@/app/actions";
 import type { BudgetCategory, Expense } from "@/lib/types";
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+const fmt0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+const CIRC = 2 * Math.PI * 16;
+
+function Ring({ pct, color }: { pct: number; color: string }) {
+  const clamped = Math.min(Math.max(pct, 0), 1);
+  return (
+    <svg className="cat-ring" viewBox="0 0 42 42" aria-hidden="true">
+      <circle cx="21" cy="21" r="16" fill="none" stroke="var(--base-2)" strokeWidth="3.5" />
+      <circle
+        cx="21" cy="21" r="16"
+        fill="none"
+        stroke={color}
+        strokeWidth="3.5"
+        strokeLinecap="round"
+        strokeDasharray={CIRC}
+        strokeDashoffset={CIRC * (1 - clamped)}
+        transform="rotate(-90 21 21)"
+      />
+    </svg>
+  );
+}
 const ACCENTS = ["var(--amber)", "var(--sky)", "var(--green)", "var(--coral)"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -67,6 +89,7 @@ export function BudgetContent({
   // Category management
   const [managing, setManaging] = useState(false);
   const [newCat, setNewCat] = useState("");
+  const [newCatBudget, setNewCatBudget] = useState("");
 
   const catName = (id: string | null) =>
     categories.find((c) => c.id === id)?.name ?? "Uncategorized";
@@ -77,13 +100,22 @@ export function BudgetContent({
   const pct = allowance > 0 ? Math.min((spent / allowance) * 100, 100) : 0;
   const over = allowance > 0 && spent > allowance;
 
-  // Category totals for the selected month, largest first
+  // Category totals for the selected month
   const byCategory = new Map<string | null, number>();
   for (const e of monthExpenses) {
     byCategory.set(e.category_id, (byCategory.get(e.category_id) ?? 0) + Number(e.amount));
   }
-  const catRows = [...byCategory.entries()].sort((a, b) => b[1] - a[1]);
-  const maxCat = catRows[0]?.[1] ?? 0;
+  const catRings: { id: string | null; name: string; budget: number | null; spent: number }[] =
+    categories.map((c) => ({
+      id: c.id,
+      name: c.name,
+      budget: c.budget != null ? Number(c.budget) : null,
+      spent: byCategory.get(c.id) ?? 0,
+    }));
+  if (byCategory.has(null)) {
+    catRings.push({ id: null, name: "Uncategorized", budget: null, spent: byCategory.get(null)! });
+  }
+  catRings.sort((a, b) => b.spent - a.spent);
 
   // Last 6 months trend
   const trendKeys = monthKeys.slice(-6);
@@ -117,8 +149,10 @@ export function BudgetContent({
   function handleAddCategory() {
     const name = newCat.trim();
     if (!name) return;
+    const budget = parseFloat(newCatBudget);
     setNewCat("");
-    startTransition(() => addCategory(name));
+    setNewCatBudget("");
+    startTransition(() => addCategory(name, budget > 0 ? budget : null));
   }
 
   return (
@@ -272,26 +306,31 @@ export function BudgetContent({
               </button>
             )}
           </div>
-          {catRows.length === 0 && !managing && (
+          {catRings.length === 0 && !managing && (
             <div className="empty-state"><p>No spending logged this month.</p></div>
           )}
           {!managing &&
-            catRows.map(([id, total], i) => (
-              <div key={id ?? "none"} className="cat-row">
-                <div className="cat-row-top">
-                  <span className="cat-name">{catName(id)}</span>
-                  <span className="cat-amount">{fmt.format(total)}</span>
+            catRings.map((r, i) => {
+              const overCat = r.budget != null && r.spent > r.budget;
+              const color = overCat ? "var(--coral)" : ACCENTS[i % ACCENTS.length];
+              const catPct = r.budget ? r.spent / r.budget : 0;
+              return (
+                <div key={r.id ?? "none"} className="lrow">
+                  <Ring pct={catPct} color={color} />
+                  <div>
+                    <div className="l-name">{r.name}</div>
+                    <div className="l-meta">
+                      {r.budget != null
+                        ? `${fmt0.format(r.spent)} of ${fmt0.format(r.budget)}`
+                        : `${fmt0.format(r.spent)} · no budget set`}
+                    </div>
+                  </div>
+                  <span className="l-pct" style={overCat ? { color: "var(--coral)" } : undefined}>
+                    {r.budget != null ? `${Math.round(catPct * 100)}%` : ""}
+                  </span>
                 </div>
-                <div className="bar cat-bar">
-                  <i
-                    style={{
-                      width: `${(total / maxCat) * 100}%`,
-                      background: ACCENTS[i % ACCENTS.length],
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           {managing && (
             <div className="cat-manage">
               {categories.map((c) => (
@@ -303,6 +342,16 @@ export function BudgetContent({
                   placeholder="new category…"
                   value={newCat}
                   onChange={(e) => setNewCat(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
+                />
+                <input
+                  className="quick-add-input cat-budget-input"
+                  type="number"
+                  min="0"
+                  step="1"
+                  placeholder="$/mo"
+                  value={newCatBudget}
+                  onChange={(e) => setNewCatBudget(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleAddCategory()}
                 />
                 <button className="d-btn" onClick={handleAddCategory} disabled={isPending}>
@@ -374,12 +423,23 @@ function CategoryRow({
 }) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(category.name);
+  const [budgetDraft, setBudgetDraft] = useState(
+    category.budget != null ? String(Number(category.budget)) : ""
+  );
 
   function save() {
     setEditing(false);
     const name = draft.trim();
     if (!name || name === category.name) return;
     startTransition(() => renameCategory(category.id, name));
+  }
+
+  function saveBudget() {
+    const amt = parseFloat(budgetDraft);
+    const next = amt > 0 ? amt : null;
+    const current = category.budget != null ? Number(category.budget) : null;
+    if (next === current) return;
+    startTransition(() => setCategoryBudget(category.id, next));
   }
 
   return (
@@ -399,6 +459,17 @@ function CategoryRow({
       ) : (
         <>
           <span className="cat-name">{category.name}</span>
+          <input
+            className="quick-add-input cat-budget-input"
+            type="number"
+            min="0"
+            step="1"
+            placeholder="$/mo"
+            value={budgetDraft}
+            onChange={(e) => setBudgetDraft(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+            onBlur={saveBudget}
+          />
           <button className="d-btn" onClick={() => setEditing(true)}>rename</button>
           <button
             className="d-btn danger"
