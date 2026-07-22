@@ -25,7 +25,7 @@ export function Greeting() {
     <div style={{ display: "flex", alignItems: "baseline", gap: "16px", flex: 1 }}>
       <div className="greeting">
         {greeting},{" "}
-        <span className="name">you</span>
+        <span className="name">Jacob</span>
       </div>
       {dateStr && <div className="date-str">{dateStr}</div>}
     </div>

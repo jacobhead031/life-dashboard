@@ -153,6 +153,28 @@ export type ProjectFile = {
   created_at: string;
 };
 
+export type BudgetCategory = {
+  id: string;
+  user_id: string;
+  name: string;
+  created_at: string;
+};
+
+export type Expense = {
+  id: string;
+  user_id: string;
+  category_id: string | null;
+  amount: number;
+  note: string | null;
+  spent_on: string; // YYYY-MM-DD
+  created_at: string;
+};
+
+export type BudgetSettings = {
+  user_id: string;
+  allowance: number;
+};
+
 export type HealthDay = {
   user_id: string;
   date: string; // YYYY-MM-DD

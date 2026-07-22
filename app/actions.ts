@@ -496,6 +496,69 @@ export async function quickCapture(body: string) {
   revalidatePath("/notes");
 }
 
+// ── Budget ───────────────────────────────────────────────────
+
+export async function addExpense(data: {
+  amount: number;
+  category_id: string | null;
+  note?: string | null;
+  spent_on: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("expenses").insert({ ...data, user_id: user.id });
+  revalidatePath("/budget");
+}
+
+export async function deleteExpense(id: string) {
+  const supabase = await createClient();
+  await supabase.from("expenses").delete().eq("id", id);
+  revalidatePath("/budget");
+}
+
+export async function addCategory(name: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("budget_categories").insert({ user_id: user.id, name });
+  revalidatePath("/budget");
+}
+
+export async function renameCategory(id: string, name: string) {
+  const supabase = await createClient();
+  await supabase.from("budget_categories").update({ name }).eq("id", id);
+  revalidatePath("/budget");
+}
+
+export async function deleteCategory(id: string) {
+  const supabase = await createClient();
+  await supabase.from("budget_categories").delete().eq("id", id);
+  revalidatePath("/budget");
+}
+
+export async function setAllowance(amount: number) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("budget_settings").upsert(
+    { user_id: user.id, allowance: amount },
+    { onConflict: "user_id" }
+  );
+  revalidatePath("/budget");
+}
+
+export async function seedDefaultCategories() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  const defaults = ["Groceries", "Gas", "Dining", "Fun", "Other"];
+  await supabase
+    .from("budget_categories")
+    .insert(defaults.map((name) => ({ user_id: user.id, name })));
+  revalidatePath("/budget");
+}
+
 export async function toggleHabitLog(habitId: string, date: string, isDone: boolean) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
