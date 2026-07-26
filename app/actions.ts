@@ -404,6 +404,16 @@ export async function deleteHabit(id: string) {
 
 // ── Notes / Projects ─────────────────────────────────────────
 
+async function topPosition(supabase: Awaited<ReturnType<typeof createClient>>, projectId: string) {
+  const { data } = await supabase
+    .from("notes").select("position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return (data?.position ?? 0) - 1;
+}
+
 export async function deleteProject(id: string) {
   const supabase = await createClient();
   await supabase.from("projects").delete().eq("id", id);
@@ -431,23 +441,19 @@ export async function addProjectNote(projectId: string, body: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  const { data: top } = await supabase
-    .from("notes").select("position")
-    .eq("project_id", projectId)
-    .order("position", { ascending: true })
-    .limit(1)
-    .maybeSingle();
-  const position = (top?.position ?? 0) - 1;
+  const position = await topPosition(supabase, projectId);
   await supabase.from("notes").insert({ user_id: user.id, project_id: projectId, body, source: "manual", position });
   await supabase.from("projects").update({ touched_at: new Date().toISOString() }).eq("id", projectId);
   revalidatePath(`/notes/${projectId}`);
   revalidatePath("/notes");
+  revalidatePath("/");
 }
 
 export async function toggleNote(noteId: string, done: boolean) {
   const supabase = await createClient();
   await supabase.from("notes").update({ done }).eq("id", noteId);
   revalidatePath("/notes");
+  revalidatePath("/");
 }
 
 export async function reorderNote(noteId: string, position: number, projectId: string) {
@@ -474,7 +480,8 @@ export async function deleteProjectFile(id: string) {
 
 export async function assignNoteToProject(noteId: string, projectId: string) {
   const supabase = await createClient();
-  await supabase.from("notes").update({ project_id: projectId }).eq("id", noteId);
+  const position = await topPosition(supabase, projectId);
+  await supabase.from("notes").update({ project_id: projectId, position }).eq("id", noteId);
   await supabase.from("projects").update({ touched_at: new Date().toISOString() }).eq("id", projectId);
   revalidatePath("/notes");
   revalidatePath("/notes/sort");
@@ -490,7 +497,8 @@ export async function promoteNoteToProject(noteId: string, title: string, area: 
     .select()
     .single();
   if (project) {
-    await supabase.from("notes").update({ project_id: project.id }).eq("id", noteId);
+    const position = await topPosition(supabase, project.id);
+    await supabase.from("notes").update({ project_id: project.id, position }).eq("id", noteId);
   }
   revalidatePath("/notes");
   revalidatePath("/notes/sort");
@@ -501,6 +509,7 @@ export async function deleteNote(noteId: string) {
   await supabase.from("notes").delete().eq("id", noteId);
   revalidatePath("/notes");
   revalidatePath("/notes/sort");
+  revalidatePath("/");
 }
 
 export async function quickCapture(body: string) {

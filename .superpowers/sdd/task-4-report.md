@@ -54,8 +54,27 @@ Cleanup: deleted the test to-do (done as part of step 5) and restored the "Charl
 
 All 4 checks (reorder persists, what's next, touch proxy, regressions) PASS functionally. Flagging as "with concerns" only because of the dnd-kit hydration-mismatch console error on every project page load (cosmetic, not a functional regression) — worth a follow-up fix, not a blocker.
 
+## Follow-up: hydration-mismatch fix verification (commit 0bfbf78)
+
+Hard-reloaded `/notes/b4fba0bf-be23-434f-8f15-47a355a6ae6e` after the fix (`DndContext id="todo-dnd"`) hot-reloaded in. Console: 0 errors, 0 warnings — the `DndDescribedBy-N` hydration-mismatch is gone, no new errors appeared. Re-ran a drag (bottom unchecked item → top, via the same `page.mouse` step/delay method): dnd-kit announced a real drop over the correct target and the DOM order updated, confirming reordering still works with the stable id. Restored original order afterward.
+
+**Status: FIXED and confirmed working — no new errors, no regressions.**
+
 ## Fix: stable DndContext id (hydration mismatch)
 
 Added `id="todo-dnd"` prop to the `<DndContext>` element in `/app/notes/[id]/ProjectDetail.tsx` (line 237). dnd-kit's `useUniqueId` hook auto-increments a counter across the SPA session, causing the server-rendered id (always starts at 0) to mismatch the client-rendered id (keeps incrementing). Explicit stable id prevents this.
 
 `npx tsc --noEmit` result: **clean (no errors).**
+
+## Final-review fixes
+
+Applied all 6 code-review fixes in one commit.
+
+1. **Filed-to-top positioning**: added a `topPosition(supabase, projectId)` helper in `app/actions.ts` (typed with `Awaited<ReturnType<typeof createClient>>`, matching this codebase's server-client convention) and used it in `addProjectNote`, `assignNoteToProject`, and `promoteNoteToProject`. Read both functions first: `assignNoteToProject` moves an existing inbox note's `project_id` onto a project — it files the note into that project's to-do list, so `position` was added to its `.update()`. `promoteNoteToProject` creates a brand-new project from a note and then attaches the same note — same filing behavior (into a project that has no other notes yet, so the computed position is trivially the top), so `position` was added there too. Neither function does anything else that would make position irrelevant — no deviation from the spec.
+2. **Uncheck re-sort**: `handleToggleNote`'s `!done` branch in `ProjectDetail.tsx` now returns `[...unchecked sorted by position, ...done]` instead of leaving the unchecked item appended out of order. Deleted the `// ponytail: midpoint assumes...` comment in `handleDragEnd` since the monotonic-order invariant it warned about is now guaranteed.
+3. **Keyboard sensor**: added `KeyboardSensor` (`@dnd-kit/core`) and `sortableKeyboardCoordinates` (`@dnd-kit/sortable`) imports; sensors list now includes `useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })` alongside the existing `PointerSensor`.
+4. **Temp-note position formula**: `handleAddNote`'s temp note now computes `(notes.length ? Math.min(...notes.map((n) => n.position)) : 0) - 1`, matching the server-side `topPosition` formula (previous `Math.min(0, ...)` could pick 0 instead of a true negative minimum, and never handled the empty-array case explicitly).
+5. **Home staleness**: added `revalidatePath("/")` to `toggleNote`, `deleteNote`, and `addProjectNote`.
+6. **Migration archive**: created `supabase/migrations/003_notes_position.sql` documenting the already-applied `notes.position` column + backfill, matching the header/comment style of `001_initial_schema.sql` / `002_health.sql`.
+
+Verification: `npx tsc --noEmit` clean, `npm run build` clean (Next.js 16.2.10 Turbopack, all 17 routes compiled).

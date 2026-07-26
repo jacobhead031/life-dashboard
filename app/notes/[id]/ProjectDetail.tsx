@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { updateProject, addProjectNote, toggleNote, deleteNote, recordProjectFile, deleteProjectFile, deleteProject, reorderNote } from "@/app/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Note, ProjectFile } from "@/lib/types";
-import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
-import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 function relTime(iso: string): string {
@@ -108,7 +108,7 @@ export function ProjectDetail({
     const temp: Note = {
       id: "temp-" + Date.now(), user_id: "", project_id: initial.id,
       body: text, source: "manual", done: false,
-      position: Math.min(0, ...notes.map((n) => n.position)) - 1,
+      position: (notes.length ? Math.min(...notes.map((n) => n.position)) : 0) - 1,
       created_at: new Date().toISOString(),
     };
     setNotes((prev) => [temp, ...prev]);
@@ -119,14 +119,21 @@ export function ProjectDetail({
   function handleToggleNote(id: string, done: boolean) {
     setNotes((prev) => {
       const next = prev.map((n) => (n.id === id ? { ...n, done } : n));
-      if (!done) return next;
+      if (!done)
+        return [
+          ...next.filter((n) => !n.done).sort((a, b) => a.position - b.position),
+          ...next.filter((n) => n.done),
+        ];
       const toggled = next.find((n) => n.id === id)!;
       return [...next.filter((n) => n.id !== id), toggled];
     });
     startTransition(async () => { await toggleNote(id, done); });
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -139,9 +146,6 @@ export function ProjectDetail({
     const moved = arrayMove(undone, from, to);
     const prevPos = moved[to - 1]?.position;
     const nextPos = moved[to + 1]?.position;
-    // ponytail: midpoint assumes positions are monotonic in display order; a
-    // recently unchecked item can break that until the next reload — renumber
-    // the whole list server-side if ordering ever visibly misbehaves
     const position =
       prevPos !== undefined && nextPos !== undefined ? (prevPos + nextPos) / 2
       : prevPos !== undefined ? prevPos + 1
