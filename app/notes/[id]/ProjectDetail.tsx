@@ -29,7 +29,7 @@ function SortableTodoRow({ note, onToggle, onDelete }: {
 }) {
   const isTemp = note.id.startsWith("temp-");
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: note.id, disabled: isTemp });
+    useSortable({ id: note.id, disabled: { draggable: isTemp, droppable: isTemp } });
   return (
     <div
       ref={setNodeRef}
