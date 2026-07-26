@@ -2,9 +2,12 @@
 
 import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { updateProject, addProjectNote, toggleNote, deleteNote, recordProjectFile, deleteProjectFile, deleteProject } from "@/app/actions";
+import { updateProject, addProjectNote, toggleNote, deleteNote, recordProjectFile, deleteProjectFile, deleteProject, reorderNote } from "@/app/actions";
 import { createClient } from "@/lib/supabase/client";
 import type { Project, Note, ProjectFile } from "@/lib/types";
+import { DndContext, PointerSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 function relTime(iso: string): string {
   const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
@@ -17,6 +20,47 @@ function fmtBytes(n: number): string {
   if (n < 1024) return `${n} B`;
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function SortableTodoRow({ note, onToggle, onDelete }: {
+  note: Note;
+  onToggle: (id: string, done: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
+  const isTemp = note.id.startsWith("temp-");
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: note.id, disabled: isTemp });
+  return (
+    <div
+      ref={setNodeRef}
+      className="note-stream-item"
+      style={{
+        opacity: isTemp ? 0.5 : isDragging ? 0.7 : 1,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}),
+      }}
+    >
+      <span className="todo-drag-handle" {...attributes} {...listeners}>⠿</span>
+      <input
+        type="checkbox"
+        className="todo-check"
+        checked={note.done}
+        onChange={(e) => onToggle(note.id, e.target.checked)}
+        disabled={isTemp}
+      />
+      <div className="note-stream-body">{note.body}</div>
+      <div className="note-stream-time">{relTime(note.created_at)}</div>
+      <button
+        className="d-btn danger"
+        style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
+        onClick={() => onDelete(note.id)}
+        disabled={isTemp}
+      >
+        ✕
+      </button>
+    </div>
+  );
 }
 
 export function ProjectDetail({
@@ -63,7 +107,9 @@ export function ProjectDetail({
     if (!text) return;
     const temp: Note = {
       id: "temp-" + Date.now(), user_id: "", project_id: initial.id,
-      body: text, source: "manual", done: false, position: 0, created_at: new Date().toISOString(),
+      body: text, source: "manual", done: false,
+      position: Math.min(0, ...notes.map((n) => n.position)) - 1,
+      created_at: new Date().toISOString(),
     };
     setNotes((prev) => [temp, ...prev]);
     setNoteDraft("");
@@ -78,6 +124,32 @@ export function ProjectDetail({
       return [...next.filter((n) => n.id !== id), toggled];
     });
     startTransition(async () => { await toggleNote(id, done); });
+  }
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const undone = notes.filter((n) => !n.done);
+    const doneNotes = notes.filter((n) => n.done);
+    const from = undone.findIndex((n) => n.id === active.id);
+    const to = undone.findIndex((n) => n.id === over.id);
+    if (from === -1 || to === -1) return;
+    const moved = arrayMove(undone, from, to);
+    const prevPos = moved[to - 1]?.position;
+    const nextPos = moved[to + 1]?.position;
+    // ponytail: midpoint assumes positions are monotonic in display order; a
+    // recently unchecked item can break that until the next reload — renumber
+    // the whole list server-side if ordering ever visibly misbehaves
+    const position =
+      prevPos !== undefined && nextPos !== undefined ? (prevPos + nextPos) / 2
+      : prevPos !== undefined ? prevPos + 1
+      : nextPos !== undefined ? nextPos - 1
+      : 0;
+    moved[to] = { ...moved[to], position };
+    setNotes([...moved, ...doneNotes]);
+    startTransition(async () => { await reorderNote(String(active.id), position, initial.id); });
   }
 
   function handleDeleteNote(id: string) {
@@ -162,18 +234,20 @@ export function ProjectDetail({
         </div>
         {notes.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            {[...notes.filter((n) => !n.done), ...notes.filter((n) => n.done)].map((n) => (
-              <div
-                key={n.id}
-                className={`note-stream-item${n.done ? " done" : ""}`}
-                style={{ opacity: n.id.startsWith("temp-") ? 0.5 : 1 }}
-              >
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={notes.filter((n) => !n.done).map((n) => n.id)} strategy={verticalListSortingStrategy}>
+                {notes.filter((n) => !n.done).map((n) => (
+                  <SortableTodoRow key={n.id} note={n} onToggle={handleToggleNote} onDelete={handleDeleteNote} />
+                ))}
+              </SortableContext>
+            </DndContext>
+            {notes.filter((n) => n.done).map((n) => (
+              <div key={n.id} className="note-stream-item done">
                 <input
                   type="checkbox"
                   className="todo-check"
                   checked={n.done}
                   onChange={(e) => handleToggleNote(n.id, e.target.checked)}
-                  disabled={n.id.startsWith("temp-")}
                 />
                 <div className="note-stream-body">{n.body}</div>
                 <div className="note-stream-time">{relTime(n.created_at)}</div>
@@ -181,7 +255,6 @@ export function ProjectDetail({
                   className="d-btn danger"
                   style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
                   onClick={() => handleDeleteNote(n.id)}
-                  disabled={n.id.startsWith("temp-")}
                 >
                   ✕
                 </button>

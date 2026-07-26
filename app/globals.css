@@ -1756,3 +1756,13 @@ body {
 .expense-item:hover .expense-delete,
 .expense-delete:focus-visible { opacity: 1; }
 .expense-delete:hover { color: var(--coral); background: rgba(231,111,81,.1); }
+.todo-drag-handle {
+  cursor: grab;
+  touch-action: none; /* required: lets dnd-kit own the gesture instead of page scroll */
+  user-select: none;
+  color: var(--muted-2);
+  font-size: 12px;
+  padding: 2px 4px;
+  flex-shrink: 0;
+}
+.todo-drag-handle:active { cursor: grabbing; }
