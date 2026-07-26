@@ -234,7 +234,7 @@ export function ProjectDetail({
         </div>
         {notes.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <DndContext id="todo-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={notes.filter((n) => !n.done).map((n) => n.id)} strategy={verticalListSortingStrategy}>
                 {notes.filter((n) => !n.done).map((n) => (
                   <SortableTodoRow key={n.id} note={n} onToggle={handleToggleNote} onDelete={handleDeleteNote} />
