@@ -431,7 +431,14 @@ export async function addProjectNote(projectId: string, body: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase.from("notes").insert({ user_id: user.id, project_id: projectId, body, source: "manual" });
+  const { data: top } = await supabase
+    .from("notes").select("position")
+    .eq("project_id", projectId)
+    .order("position", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  const position = (top?.position ?? 0) - 1;
+  await supabase.from("notes").insert({ user_id: user.id, project_id: projectId, body, source: "manual", position });
   await supabase.from("projects").update({ touched_at: new Date().toISOString() }).eq("id", projectId);
   revalidatePath(`/notes/${projectId}`);
   revalidatePath("/notes");
@@ -441,6 +448,14 @@ export async function toggleNote(noteId: string, done: boolean) {
   const supabase = await createClient();
   await supabase.from("notes").update({ done }).eq("id", noteId);
   revalidatePath("/notes");
+}
+
+export async function reorderNote(noteId: string, position: number, projectId: string) {
+  const supabase = await createClient();
+  await supabase.from("notes").update({ position }).eq("id", noteId);
+  revalidatePath(`/notes/${projectId}`);
+  revalidatePath("/notes");
+  revalidatePath("/");
 }
 
 export async function recordProjectFile(projectId: string, name: string, path: string, size: number) {

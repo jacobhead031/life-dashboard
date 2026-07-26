@@ -15,7 +15,7 @@ export default async function NotesPage() {
       .in("status", ["active", "seed", "done"])
       .eq("notes.done", false)
       .order("touched_at", { ascending: false })
-      .order("created_at", { referencedTable: "notes", ascending: false })
+      .order("position", { referencedTable: "notes", ascending: true })
       .limit(1, { referencedTable: "notes" }),
     supabase
       .from("notes")

@@ -113,7 +113,7 @@ export default async function HomePage() {
       .eq("status", "active")
       .eq("notes.done", false)
       .order("touched_at", { ascending: true })
-      .order("created_at", { referencedTable: "notes", ascending: false })
+      .order("position", { referencedTable: "notes", ascending: true })
       .limit(1, { referencedTable: "notes" }),
     supabase
       .from("book")

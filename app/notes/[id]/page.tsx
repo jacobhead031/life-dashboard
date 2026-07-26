@@ -15,7 +15,7 @@ export default async function ProjectPage({
 
   const [{ data: project }, { data: notes }, { data: files }] = await Promise.all([
     supabase.from("projects").select("*").eq("id", id).single(),
-    supabase.from("notes").select("*").eq("project_id", id).order("created_at", { ascending: false }),
+    supabase.from("notes").select("*").eq("project_id", id).order("position", { ascending: true }),
     supabase.from("project_files").select("*").eq("project_id", id).order("created_at", { ascending: false }),
   ]);
 
