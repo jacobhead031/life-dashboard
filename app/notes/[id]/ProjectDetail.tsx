@@ -71,7 +71,12 @@ export function ProjectDetail({
   }
 
   function handleToggleNote(id: string, done: boolean) {
-    setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, done } : n)));
+    setNotes((prev) => {
+      const next = prev.map((n) => (n.id === id ? { ...n, done } : n));
+      if (!done) return next;
+      const toggled = next.find((n) => n.id === id)!;
+      return [...next.filter((n) => n.id !== id), toggled];
+    });
     startTransition(async () => { await toggleNote(id, done); });
   }
 
