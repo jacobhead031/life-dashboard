@@ -140,6 +140,7 @@ export type Note = {
   body: string;
   source: string;
   done: boolean;
+  position: number;
   created_at: string;
 };
 

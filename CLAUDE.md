@@ -16,7 +16,8 @@ created_at timestamptz, updated_at timestamptz, touched_at timestamptz
 ### `notes`
 ```sql
 id uuid, user_id uuid, project_id uuid (nullable), body text,
-source text, done boolean (default false), created_at timestamptz
+source text, done boolean (default false),
+position double precision (default 0, lower = higher in the to-do list), created_at timestamptz
 ```
 - `source` values: `manual | quick-capture | claude-code`
 - `done` — notes on a project page render as a to-do list; checked = done
@@ -31,7 +32,7 @@ size bigint, created_at timestamptz
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.
 - **`touched_at` ≠ `updated_at`.** `touched_at` moves ONLY when: (1) a note is attached to the project, or (2) `next_action` changes. Editing title/why/links must NOT move `touched_at`. This prevents stale projects masquerading as active.
-- **`next_action` is retired from the UI.** The column still exists but nothing reads or writes it anymore. "What's next" everywhere (project page, home card, projects list) is the newest unchecked to-do (`notes` where `done = false`).
+- **`next_action` is retired from the UI.** The column still exists but nothing reads or writes it anymore. "What's next" everywhere (project page, home card, projects list) is the **lowest-`position` unchecked to-do** (`notes` where `done = false`, `order by position asc`).
 - **Active/warm projects order by `touched_at ASC`** on the home card — surface the stalest live project so nothing gets forgotten.
 - **`cold` projects** are hidden from the main `/notes` view. Reachable via filter only.
 

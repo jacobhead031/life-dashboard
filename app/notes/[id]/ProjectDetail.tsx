@@ -63,7 +63,7 @@ export function ProjectDetail({
     if (!text) return;
     const temp: Note = {
       id: "temp-" + Date.now(), user_id: "", project_id: initial.id,
-      body: text, source: "manual", done: false, created_at: new Date().toISOString(),
+      body: text, source: "manual", done: false, position: 0, created_at: new Date().toISOString(),
     };
     setNotes((prev) => [temp, ...prev]);
     setNoteDraft("");
