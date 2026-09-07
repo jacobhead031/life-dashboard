@@ -1,10 +1,13 @@
 import Link from "next/link";
 
-export function TabNav({ active }: { active: "dashboard" | "projects" | "health" | "budget" }) {
+export function TabNav({ active }: { active: "dashboard" | "school" | "projects" | "health" | "budget" }) {
   return (
     <nav className="tab-nav">
       <Link href="/" className={`tab-link${active === "dashboard" ? " active" : ""}`}>
         Dashboard
+      </Link>
+      <Link href="/school" className={`tab-link${active === "school" ? " active" : ""}`}>
+        School
       </Link>
       <Link href="/notes" className={`tab-link${active === "projects" ? " active" : ""}`}>
         Projects

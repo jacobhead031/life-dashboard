@@ -28,6 +28,21 @@ id uuid, user_id uuid, project_id uuid, name text, path text,
 size bigint, created_at timestamptz
 ```
 
+
+### `school_class`
+```sql
+id uuid, user_id uuid, name text, days int[] (ISO weekday 1=Mon..7=Sun),
+start_time time (nullable), created_at timestamptz
+```
+
+### `school_item`
+```sql
+id uuid, user_id uuid, class_id uuid (fk school_class, cascade), title text,
+kind text ('assignment' | 'exam'), due_on date, done boolean (default false), created_at timestamptz
+```
+- Home page banner + week card read `school_item` where `due_on` in [Monday of this week, today+7].
+- The 7:30 health-coach email (`~/health-coach/school_brief.py`) reads both tables via PostgREST with the service key.
+
 ## Key rules
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.

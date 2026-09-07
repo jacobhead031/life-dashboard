@@ -199,3 +199,23 @@ export type HealthRecs = {
   recs: string[];
   updated_at: string;
 };
+
+export type SchoolClass = {
+  id: string;
+  user_id: string;
+  name: string;
+  days: number[]; // ISO weekday: 1=Mon .. 7=Sun
+  start_time: string | null; // HH:MM:SS from Postgres
+  created_at: string;
+};
+
+export type SchoolItem = {
+  id: string;
+  user_id: string;
+  class_id: string;
+  title: string;
+  kind: "assignment" | "exam";
+  due_on: string; // YYYY-MM-DD
+  done: boolean;
+  created_at: string;
+};

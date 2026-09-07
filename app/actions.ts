@@ -601,3 +601,54 @@ export async function toggleHabitLog(habitId: string, date: string, isDone: bool
   revalidatePath("/");
   revalidatePath("/habits");
 }
+
+// ── School ───────────────────────────────────────────────────
+
+export async function saveSchoolClass(data: {
+  id?: string;
+  name: string;
+  days: number[];
+  start_time: string | null;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("school_class").upsert({ ...data, user_id: user.id });
+  revalidatePath("/school");
+  revalidatePath("/");
+}
+
+export async function deleteSchoolClass(id: string) {
+  const supabase = await createClient();
+  await supabase.from("school_class").delete().eq("id", id);
+  revalidatePath("/school");
+  revalidatePath("/");
+}
+
+export async function addSchoolItem(data: {
+  title: string;
+  class_id: string;
+  kind: "assignment" | "exam";
+  due_on: string;
+}) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return;
+  await supabase.from("school_item").insert({ ...data, user_id: user.id });
+  revalidatePath("/school");
+  revalidatePath("/");
+}
+
+export async function toggleSchoolItem(id: string, done: boolean) {
+  const supabase = await createClient();
+  await supabase.from("school_item").update({ done }).eq("id", id);
+  revalidatePath("/school");
+  revalidatePath("/");
+}
+
+export async function deleteSchoolItem(id: string) {
+  const supabase = await createClient();
+  await supabase.from("school_item").delete().eq("id", id);
+  revalidatePath("/school");
+  revalidatePath("/");
+}

@@ -49,6 +49,8 @@ async function fetchTorontoSunTimes(date: string): Promise<SunTimes | null> {
 import { Greeting } from "@/components/Greeting";
 import { SignOutButton } from "@/components/SignOutButton";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
+import { SchoolBanner } from "@/components/SchoolBanner";
+import { SchoolWeekCard, type SchoolItemWithClass } from "@/components/cards/SchoolWeekCard";
 import { StartSomethingCard } from "@/components/StartSomethingCard";
 import { MonthlyGoalsCard } from "@/components/cards/MonthlyGoalsCard";
 import { BooksCard } from "@/components/cards/BooksCard";
@@ -85,6 +87,10 @@ export default async function HomePage() {
   thirtyAgo.setUTCDate(thirtyAgo.getUTCDate() - 30);
   const thirtyAgoStr = thirtyAgo.toISOString().split("T")[0];
 
+  const plus7 = new Date(now);
+  plus7.setUTCDate(plus7.getUTCDate() + 7);
+  const plus7Str = plus7.toISOString().split("T")[0];
+
   const [
     { data: goals },
     { data: liveProjects },
@@ -101,6 +107,7 @@ export default async function HomePage() {
     { data: weeklyGoals },
     { data: healthDays },
     { data: healthWeights },
+    { data: schoolItems },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -151,6 +158,12 @@ export default async function HomePage() {
       .not("weight", "is", null)
       .order("date", { ascending: false })
       .limit(1),
+    supabase
+      .from("school_item")
+      .select("*, school_class(name)")
+      .gte("due_on", weekStr)
+      .lte("due_on", plus7Str)
+      .order("due_on"),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -163,6 +176,11 @@ export default async function HomePage() {
 
   // Compute nearest upcoming birthday within its lead window
   const upcoming = getUpcomingBirthday(birthdays ?? [], now);
+
+  // Nearest unfinished assignment/exam due today or within 7 days
+  const school = (schoolItems ?? []) as SchoolItemWithClass[];
+  const nextDue = school.find((i) => !i.done && i.due_on >= todayStr);
+  const dueIn = nextDue ? Math.round((Date.parse(nextDue.due_on) - Date.parse(todayStr)) / 86_400_000) : 0;
 
   return (
     <div className="wrap">
@@ -183,6 +201,15 @@ export default async function HomePage() {
           relLabel={upcoming.relLabel}
         />
       )}
+      {nextDue && (
+        <SchoolBanner
+          title={nextDue.title}
+          kind={nextDue.kind}
+          className={nextDue.school_class?.name ?? ""}
+          dayName={new Date(nextDue.due_on + "T12:00:00Z").toLocaleDateString("en-US", { weekday: "long", timeZone: "UTC" })}
+          relLabel={dueIn === 0 ? "today" : dueIn === 1 ? "tomorrow" : `in ${dueIn} days`}
+        />
+      )}
 
       {/* ── Bento grid ─────────────────────────────────────── */}
       <div className="grid-bento">
@@ -194,6 +221,9 @@ export default async function HomePage() {
 
         {/* Row 3 — health strip (span 6) */}
         <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} />
+
+        {/* School — this week's assignments and exams (span 6) */}
+        <SchoolWeekCard items={school} weekStr={weekStr} todayStr={todayStr} />
 
         {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
         <MonthlyGoalsCard
