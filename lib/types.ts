@@ -217,5 +217,6 @@ export type SchoolItem = {
   kind: "assignment" | "exam";
   due_on: string; // YYYY-MM-DD
   done: boolean;
+  position: number;
   created_at: string;
 };

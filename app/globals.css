@@ -1856,3 +1856,14 @@ body {
 }
 .cal-chip:hover .cal-x { opacity: 1; }
 .cal-x:hover { color: var(--coral); }
+
+/* weekly to-do rows (reuse .note-stream-item / .todo-check / .todo-drag-handle) */
+.todo-tag {
+  font-family: var(--font-space-mono), monospace;
+  font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--coral); border: 1px solid var(--coral); border-radius: 4px;
+  padding: 0 5px; margin-left: 8px; vertical-align: 1px;
+}
+.todo-class { color: var(--muted-2); font-size: 12px; margin-left: 10px; }
+.todo-due.today { color: var(--amber); }
+.todo-due.overdue { color: var(--coral); }

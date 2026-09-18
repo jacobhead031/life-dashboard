@@ -634,9 +634,22 @@ export async function addSchoolItem(data: {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return;
-  await supabase.from("school_item").insert({ ...data, user_id: user.id });
+  // New items land at the bottom of the weekly to-do.
+  const { data: last } = await supabase
+    .from("school_item")
+    .select("position")
+    .order("position", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  await supabase.from("school_item").insert({ ...data, user_id: user.id, position: (last?.position ?? 0) + 1 });
   revalidatePath("/school");
   revalidatePath("/");
+}
+
+export async function reorderSchoolItem(id: string, position: number) {
+  const supabase = await createClient();
+  await supabase.from("school_item").update({ position }).eq("id", id);
+  revalidatePath("/school");
 }
 
 export async function toggleSchoolItem(id: string, done: boolean) {

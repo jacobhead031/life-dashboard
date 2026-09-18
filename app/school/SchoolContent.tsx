@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
 import {
   addSchoolItem,
   deleteSchoolClass,
   deleteSchoolItem,
+  reorderSchoolItem,
   saveSchoolClass,
   toggleSchoolItem,
 } from "@/app/actions";
 import type { SchoolClass, SchoolItem } from "@/lib/types";
+import { WeekTodo } from "./WeekTodo";
 
 const ACCENTS = ["var(--amber)", "var(--sky)", "var(--green)", "var(--coral)"];
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -23,6 +25,10 @@ function localDateStr(d: Date): string {
 
 export function SchoolContent({ classes, items }: { classes: SchoolClass[]; items: SchoolItem[] }) {
   const [isPending, startTransition] = useTransition();
+  // Calendar and weekly to-do both read this, so a check in either shows in both at once.
+  const [optItems, patchItem] = useOptimistic(items, (state, patch: Partial<SchoolItem> & { id: string }) =>
+    state.map((it) => (it.id === patch.id ? { ...it, ...patch } : it)),
+  );
   const today = new Date();
   const todayStr = localDateStr(today);
   const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
@@ -51,7 +57,27 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
   const byDate = new Map<string, SchoolItem[]>();
-  for (const it of items) byDate.set(it.due_on, [...(byDate.get(it.due_on) ?? []), it]);
+  for (const it of optItems) byDate.set(it.due_on, [...(byDate.get(it.due_on) ?? []), it]);
+
+  // Weekly to-do: due within 7 days, plus anything overdue and still unchecked.
+  const plus7Str = localDateStr(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7));
+  const weekItems = optItems
+    .filter((it) => it.due_on <= plus7Str && (it.due_on >= todayStr || !it.done))
+    .sort((a, b) => a.position - b.position || a.due_on.localeCompare(b.due_on));
+
+  function toggle(id: string, done: boolean) {
+    startTransition(async () => {
+      patchItem({ id, done });
+      await toggleSchoolItem(id, done);
+    });
+  }
+
+  function reorder(id: string, position: number) {
+    startTransition(async () => {
+      patchItem({ id, position });
+      await reorderSchoolItem(id, position);
+    });
+  }
 
   function handleAddItem() {
     if (!title.trim() || !classId || !dueOn) return;
@@ -203,6 +229,8 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           </div>
         </section>
 
+        <WeekTodo items={weekItems} accent={accent} clsName={clsName} todayStr={todayStr} onToggle={toggle} onReorder={reorder} />
+
         <section className="card span-6">
           <div className="card-label"><span>due · {MONTH_NAMES[m]}</span></div>
           <div className="cal-grid">
@@ -220,7 +248,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
                       className={`cal-chip${it.kind === "exam" ? " exam" : ""}${it.done ? " done" : ""}`}
                       style={{ "--chip": accent(it.class_id) } as React.CSSProperties}
                       title={`${clsName(it.class_id)} · click to mark ${it.done ? "not done" : "done"}`}
-                      onClick={() => startTransition(() => toggleSchoolItem(it.id, !it.done))}
+                      onClick={() => toggle(it.id, !it.done)}
                     >
                       <span>{it.title}</span>
                       <span className="cal-meta">{clsName(it.class_id)}</span>

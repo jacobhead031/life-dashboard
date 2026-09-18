@@ -38,8 +38,10 @@ start_time time (nullable), created_at timestamptz
 ### `school_item`
 ```sql
 id uuid, user_id uuid, class_id uuid (fk school_class, cascade), title text,
-kind text ('assignment' | 'exam'), due_on date, done boolean (default false), created_at timestamptz
+kind text ('assignment' | 'exam'), due_on date, done boolean (default false),
+position double precision (default 0, lower = higher in the weekly to-do), created_at timestamptz
 ```
+- `/school` weekly to-do lists items due in [today, today+7] plus unchecked overdue, ordered by `position`. Its checkbox and the calendar chip write the same `done` flag. Terminal inserts default to `position = 0` (top of the list).
 - Home page banner + week card read `school_item` where `due_on` in [Monday of this week, today+7].
 - The 7:30 health-coach email (`~/health-coach/school_brief.py`) reads both tables via PostgREST with the service key.
 
