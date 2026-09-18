@@ -12,6 +12,7 @@ import {
   seedDefaultCategories,
 } from "@/app/actions";
 import type { BudgetCategory, Expense } from "@/lib/types";
+import { todayStr } from "@/lib/utils";
 
 const fmt = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
 const fmt0 = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
@@ -41,10 +42,6 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-function localDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 function monthLabel(key: string): string {
   const [y, m] = key.split("-");
   return `${MONTH_NAMES[Number(m) - 1]} ${y}`;
@@ -68,10 +65,11 @@ export function BudgetContent({
 
   // Last 12 month keys, oldest → newest
   const monthKeys: string[] = [];
-  const now = new Date();
+  const today = todayStr();
+  const [ty, tm] = today.split("-").map(Number);
   for (let i = 11; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    monthKeys.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
+    const d = new Date(Date.UTC(ty, tm - 1 - i, 1));
+    monthKeys.push(d.toISOString().slice(0, 7));
   }
   const [monthIdx, setMonthIdx] = useState(monthKeys.length - 1);
   const monthKey = monthKeys[monthIdx];
@@ -80,7 +78,7 @@ export function BudgetContent({
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [note, setNote] = useState("");
-  const [spentOn, setSpentOn] = useState(localDateStr(now));
+  const [spentOn, setSpentOn] = useState(today);
 
   // Allowance inline edit
   const [editingAllowance, setEditingAllowance] = useState(false);

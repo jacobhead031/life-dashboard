@@ -1,13 +1,9 @@
 import Link from "next/link";
 import type { SchoolItem } from "@/lib/types";
+import { addDays } from "@/lib/utils";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 export type SchoolItemWithClass = SchoolItem & { school_class: { name: string } | null };
-
-function addDays(dateStr: string, n: number): string {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  return new Date(Date.UTC(y, m - 1, d + n)).toISOString().split("T")[0];
-}
 
 export function SchoolWeekCard({
   items,

@@ -8,6 +8,7 @@ import {
   deleteReflectionNote,
 } from "@/app/actions";
 import type { Reflection, ReflectionNote } from "@/lib/types";
+import { todayStr } from "@/lib/utils";
 
 function relTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
@@ -18,12 +19,14 @@ function relTime(iso: string): string {
   if (mins < 60) return `${mins}m ago`;
   if (hours < 24) return `${hours}h ago`;
   if (days < 30) return `${days}d ago`;
-  const d = new Date(iso);
-  const month = d.toLocaleDateString("en-US", { month: "short" });
-  const dayN = d.getDate();
-  const year = d.getFullYear();
-  const thisYear = new Date().getFullYear();
-  return year === thisYear ? `${month} ${dayN}` : `${month} ${dayN}, ${year}`;
+  // explicit zone so server and client render the same day
+  const sameYear = todayStr(new Date(iso)).slice(0, 4) === todayStr().slice(0, 4);
+  return new Date(iso).toLocaleDateString("en-US", {
+    timeZone: "America/Toronto",
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  });
 }
 
 function NoteInput({
@@ -122,7 +125,7 @@ export function ReflectionContent({
   function toggleExpand(id: string) {
     setExpandedNotes((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (!next.delete(id)) next.add(id);
       return next;
     });
   }

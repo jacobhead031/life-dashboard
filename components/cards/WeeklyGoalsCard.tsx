@@ -89,6 +89,8 @@ export function WeeklyGoalsCard({
                 className="d-btn danger"
                 style={{ marginLeft: 8, opacity: 0.4, fontSize: "11px", padding: "2px 6px" }}
                 onClick={() => handleDelete(g.id)}
+                disabled={g.id.startsWith("temp-")}
+                aria-label={`Delete ${g.text}`}
               >✕</button>
             </div>
           ) : (
@@ -101,7 +103,8 @@ export function WeeklyGoalsCard({
               aria-checked={g.done}
               tabIndex={0}
               onKeyDown={(e) => {
-                if ((e.key === " " || e.key === "Enter") && !isPending && !g.id.startsWith("temp-")) {
+                // Own keys only, so Enter on the nested ✕ still deletes.
+                if (e.target === e.currentTarget && (e.key === " " || e.key === "Enter") && !isPending && !g.id.startsWith("temp-")) {
                   e.preventDefault();
                   handleToggle(g);
                 }
@@ -113,6 +116,8 @@ export function WeeklyGoalsCard({
                 className="d-btn danger"
                 style={{ marginLeft: 8, opacity: 0.4, fontSize: "11px", padding: "2px 6px" }}
                 onClick={(e) => { e.stopPropagation(); handleDelete(g.id); }}
+                disabled={g.id.startsWith("temp-")}
+                aria-label={`Delete ${g.text}`}
               >✕</button>
             </div>
           )}
@@ -144,7 +149,7 @@ export function WeeklyGoalsCard({
             onKeyDown={(e) => e.key === "Enter" && handleAdd()}
             disabled={isPending}
           />
-          <button className="btn" onClick={() => { setShowAdd(false); setDraft(""); setTargetDraft(""); }}>
+          <button className="btn" aria-label="Cancel" onClick={() => { setShowAdd(false); setDraft(""); setTargetDraft(""); }}>
             ✕
           </button>
         </div>

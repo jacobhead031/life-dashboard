@@ -35,12 +35,12 @@ export function IdeasContent({ ideas }: { ideas: Idea[] }) {
     });
   }
 
-  async function handleArchive(idea: Idea) {
-    await archiveIdea(idea.id, true);
+  function handleArchive(idea: Idea) {
+    startTransition(async () => { await archiveIdea(idea.id, true); });
   }
 
-  async function handleRestore(idea: Idea) {
-    await archiveIdea(idea.id, false);
+  function handleRestore(idea: Idea) {
+    startTransition(async () => { await archiveIdea(idea.id, false); });
   }
 
   return (

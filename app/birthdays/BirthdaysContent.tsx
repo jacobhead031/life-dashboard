@@ -3,15 +3,12 @@
 import { useState, useTransition } from "react";
 import { addBirthday, updateBirthday, deleteBirthday } from "@/app/actions";
 import type { RecurringDate } from "@/lib/types";
+import { BirthdayFields, EMPTY_BIRTHDAY } from "@/components/BirthdayFields";
 
 const MONTHS = [
   "January","February","March","April","May","June",
   "July","August","September","October","November","December",
 ];
-
-function daysInMonth(month: number): number {
-  return new Date(2024, month, 0).getDate();
-}
 
 export function BirthdaysContent({
   birthdays,
@@ -21,30 +18,15 @@ export function BirthdaysContent({
   const [showAdd, setShowAdd] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
-  // Add form state
-  const [name, setName] = useState("");
-  const [month, setMonth] = useState(1);
-  const [day, setDay] = useState(1);
-  const [relationship, setRelationship] = useState("");
-  const [leadDays, setLeadDays] = useState("7");
+  const [draft, setDraft] = useState(EMPTY_BIRTHDAY);
+  const [editDraft, setEditDraft] = useState(EMPTY_BIRTHDAY);
   const [isPending, startTransition] = useTransition();
 
-  // Edit form state (mirrors add)
-  const [editName, setEditName] = useState("");
-  const [editMonth, setEditMonth] = useState(1);
-  const [editDay, setEditDay] = useState(1);
-  const [editRelationship, setEditRelationship] = useState("");
-  const [editLeadDays, setEditLeadDays] = useState("7");
-
   function handleAdd() {
-    if (!name.trim()) return;
-    const data = { name: name.trim(), month, day, relationship: relationship.trim() || null, lead_days: parseInt(leadDays) || 7 };
+    if (!draft.name.trim()) return;
+    const data = { name: draft.name.trim(), month: draft.month, day: draft.day, relationship: draft.relationship.trim() || null, lead_days: parseInt(draft.leadDays) || 7 };
     setShowAdd(false);
-    setName("");
-    setMonth(1);
-    setDay(1);
-    setRelationship("");
-    setLeadDays("7");
+    setDraft(EMPTY_BIRTHDAY);
     startTransition(async () => {
       await addBirthday(data);
     });
@@ -52,27 +34,27 @@ export function BirthdaysContent({
 
   function startEdit(b: RecurringDate) {
     setEditingId(b.id);
-    setEditName(b.name);
-    setEditMonth(b.month);
-    setEditDay(b.day);
-    setEditRelationship(b.relationship ?? "");
-    setEditLeadDays(String(b.lead_days));
+    setEditDraft({ name: b.name, relationship: b.relationship ?? "", month: b.month, day: b.day, leadDays: String(b.lead_days) });
   }
 
-  async function handleSaveEdit(b: RecurringDate) {
+  function handleSaveEdit(b: RecurringDate) {
     setEditingId(null);
-    await updateBirthday(b.id, {
-      name: editName.trim() || b.name,
-      month: editMonth,
-      day: editDay,
-      relationship: editRelationship.trim() || null,
-      lead_days: parseInt(editLeadDays) || 7,
+    startTransition(async () => {
+      await updateBirthday(b.id, {
+        name: editDraft.name.trim() || b.name,
+        month: editDraft.month,
+        day: editDraft.day,
+        relationship: editDraft.relationship.trim() || null,
+        lead_days: parseInt(editDraft.leadDays) || 7,
+      });
     });
   }
 
-  async function handleDelete(b: RecurringDate) {
+  function handleDelete(b: RecurringDate) {
     if (!confirm(`Delete ${b.name}'s birthday?`)) return;
-    await deleteBirthday(b.id);
+    startTransition(async () => {
+      await deleteBirthday(b.id);
+    });
   }
 
   return (
@@ -94,73 +76,12 @@ export function BirthdaysContent({
       {showAdd && (
         <div className="add-panel">
           <div className="add-panel-title">new birthday</div>
-          <div className="d-form-row">
-            <div className="d-field" style={{ flex: 2 }}>
-              <label>Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Person's name"
-                autoFocus
-              />
-            </div>
-            <div className="d-field">
-              <label>Relationship</label>
-              <input
-                value={relationship}
-                onChange={(e) => setRelationship(e.target.value)}
-                placeholder="e.g. partner, sister"
-              />
-            </div>
-          </div>
-          <div className="d-form-row">
-            <div className="d-field">
-              <label>Month</label>
-              <select
-                value={month}
-                onChange={(e) => {
-                  const m = parseInt(e.target.value);
-                  setMonth(m);
-                  if (day > daysInMonth(m)) setDay(1);
-                }}
-              >
-                {MONTHS.map((mn, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {mn}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="d-field">
-              <label>Day</label>
-              <select
-                value={day}
-                onChange={(e) => setDay(parseInt(e.target.value))}
-              >
-                {Array.from({ length: daysInMonth(month) }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="d-field">
-              <label>Lead days</label>
-              <input
-                type="number"
-                value={leadDays}
-                onChange={(e) => setLeadDays(e.target.value)}
-                min={0}
-                max={60}
-                placeholder="7"
-              />
-            </div>
-          </div>
+          <BirthdayFields value={draft} onChange={setDraft} relationshipPlaceholder="e.g. partner, sister" />
           <div className="d-form-actions">
             <button
               className="btn primary"
               onClick={handleAdd}
-              disabled={!name.trim()}
+              disabled={!draft.name.trim()}
             >
               Add birthday
             </button>
@@ -186,71 +107,7 @@ export function BirthdaysContent({
               <div key={b.id} className="d-item" style={{ flexDirection: "column", alignItems: "stretch" }}>
                 {isEditing ? (
                   <div>
-                    <div className="d-form-row">
-                      <div className="d-field" style={{ flex: 2 }}>
-                        <label>Name</label>
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          autoFocus
-                        />
-                      </div>
-                      <div className="d-field">
-                        <label>Relationship</label>
-                        <input
-                          value={editRelationship}
-                          onChange={(e) => setEditRelationship(e.target.value)}
-                          placeholder="optional"
-                        />
-                      </div>
-                    </div>
-                    <div className="d-form-row">
-                      <div className="d-field">
-                        <label>Month</label>
-                        <select
-                          value={editMonth}
-                          onChange={(e) => {
-                            const m = parseInt(e.target.value);
-                            setEditMonth(m);
-                            if (editDay > daysInMonth(m)) setEditDay(1);
-                          }}
-                        >
-                          {MONTHS.map((mn, i) => (
-                            <option key={i + 1} value={i + 1}>
-                              {mn}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                      <div className="d-field">
-                        <label>Day</label>
-                        <select
-                          value={editDay}
-                          onChange={(e) =>
-                            setEditDay(parseInt(e.target.value))
-                          }
-                        >
-                          {Array.from(
-                            { length: daysInMonth(editMonth) },
-                            (_, i) => (
-                              <option key={i + 1} value={i + 1}>
-                                {i + 1}
-                              </option>
-                            )
-                          )}
-                        </select>
-                      </div>
-                      <div className="d-field">
-                        <label>Lead days</label>
-                        <input
-                          type="number"
-                          value={editLeadDays}
-                          onChange={(e) => setEditLeadDays(e.target.value)}
-                          min={0}
-                          max={60}
-                        />
-                      </div>
-                    </div>
+                    <BirthdayFields value={editDraft} onChange={setEditDraft} relationshipPlaceholder="optional" />
                     <div className="d-form-actions">
                       <button
                         className="btn primary"

@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import { addDays, todayStr } from "@/lib/utils";
 import { TabNav } from "@/components/TabNav";
 import { Greeting } from "@/components/Greeting";
 import { SignOutButton } from "@/components/SignOutButton";
@@ -10,10 +11,7 @@ export default async function HealthPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const now = new Date();
-  const twentyEightAgo = new Date(now);
-  twentyEightAgo.setUTCDate(twentyEightAgo.getUTCDate() - 28);
-  const twentyEightAgoStr = twentyEightAgo.toISOString().split("T")[0];
+  const twentyEightAgoStr = addDays(todayStr(), -28);
 
   const [{ data: days }, { data: weighIns }, { data: recs }] = await Promise.all([
     supabase.from("health_day").select("*").gte("date", twentyEightAgoStr).order("date"),

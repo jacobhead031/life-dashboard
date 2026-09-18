@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { addDays, todayStr } from "@/lib/utils";
 import { HabitsContent } from "./HabitsContent";
 
 export default async function HabitsPage() {
@@ -7,35 +9,26 @@ export default async function HabitsPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const now = new Date();
-  const year = now.getUTCFullYear();
-  const month = now.getUTCMonth() + 1;
-  // fetch logs for current month + a few days back (for streak context)
-  const firstOfMonth = `${year}-${String(month).padStart(2, "0")}-01`;
-  const sixtyAgo = new Date(now);
-  sixtyAgo.setUTCDate(sixtyAgo.getUTCDate() - 60);
-  const sixtyAgoStr = sixtyAgo.toISOString().split("T")[0];
+  const today = todayStr();
+  // 60 days back (for streak context)
+  const sixtyAgoStr = addDays(today, -60);
 
   const [{ data: habits }, { data: logs }] = await Promise.all([
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", sixtyAgoStr).order("date"),
   ]);
 
-  const todayStr = now.toISOString().split("T")[0];
-
   return (
     <div className="wrap">
       <div className="top" style={{ marginBottom: 24 }}>
-        <a href="/" style={{ color: "var(--muted)", fontSize: "13px", textDecoration: "none" }}>
-          ← dashboard
-        </a>
+        <Link href="/" className="back-link">← home</Link>
       </div>
       <HabitsContent
         habits={habits ?? []}
         logs={logs ?? []}
-        todayStr={todayStr}
-        currentYear={year}
-        currentMonth={month}
+        todayStr={today}
+        currentYear={Number(today.slice(0, 4))}
+        currentMonth={Number(today.slice(5, 7))}
       />
     </div>
   );

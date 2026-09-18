@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useOptimistic, useTransition, useState, useRef } from "react";
 import { updateBookPage, markBookFinished } from "@/app/actions";
 import type { Book } from "@/lib/types";
+import { todayStr } from "@/lib/utils";
 
 function Stars({ rating }: { rating: number }) {
   return (
@@ -51,8 +52,7 @@ export function BooksCard({
 
   function handleFinish(book: Book) {
     startTransition(async () => {
-      const today = new Date().toISOString().split("T")[0];
-      applyOptimistic({ id: book.id, status: "finished", date_finished: today, current_page: null });
+      applyOptimistic({ id: book.id, status: "finished", date_finished: todayStr(), current_page: null });
       await markBookFinished(book.id);
     });
   }

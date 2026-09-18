@@ -11,7 +11,7 @@ next_action text, why text, repo_url text, live_url text,
 created_at timestamptz, updated_at timestamptz, touched_at timestamptz
 ```
 - `area` enum: `career | personal`
-- `status` enum: `active | warm | cold | seed`
+- `status` enum: `active | seed | done`
 
 ### `notes`
 ```sql
@@ -27,6 +27,8 @@ position double precision (default 0, lower = higher in the to-do list), created
 id uuid, user_id uuid, project_id uuid, name text, path text,
 size bigint, created_at timestamptz
 ```
+- `path` is the object name in the **private** `project-files` storage bucket: `<user_id>/<project_id>/<ts>-<filename>`. Storage policy requires the first segment to be the caller's uid; the UI links via signed URLs, never `/object/public/`.
+- Deleting a project cascades to `project_files` rows; `deleteProject` removes the storage objects first. Its notes fall back to the inbox (`on delete set null`).
 
 
 ### `school_class`
@@ -48,28 +50,29 @@ position double precision (default 0, lower = higher in the weekly to-do), creat
 ## Key rules
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.
-- **`touched_at` ≠ `updated_at`.** `touched_at` moves ONLY when: (1) a note is attached to the project, or (2) `next_action` changes. Editing title/why/links must NOT move `touched_at`. This prevents stale projects masquerading as active.
+- **`touched_at` ≠ `updated_at`.** `touched_at` moves ONLY when: a note is attached to the project. Editing title/why/links must NOT move `touched_at`. This prevents stale projects masquerading as active.
 - **`next_action` is retired from the UI.** The column still exists but nothing reads or writes it anymore. "What's next" everywhere (project page, home card, projects list) is the **lowest-`position` unchecked to-do** (`notes` where `done = false`, `order by position asc`).
-- **Active/warm projects order by `touched_at ASC`** on the home card — surface the stalest live project so nothing gets forgotten.
-- **`cold` projects** are hidden from the main `/notes` view. Reachable via filter only.
+- **Active projects order by `touched_at ASC`** on the home card — surface the stalest live project so nothing gets forgotten.
+- **Dates:** every "today" goes through `todayStr()` in `lib/utils.ts` (America/Toronto). Never `new Date().toISOString()` — the server is UTC, so that is tomorrow from 8pm.
+- **Server actions throw on failure** (`ok()` / `authed()` in `app/actions.ts`); call them inside `startTransition(async …)` so errors reach `app/error.tsx`.
+- **Migrations:** `supabase/migrations/` replays from scratch (`000` is the baseline for tables first created by hand). Apply new ones per the memory note, not via the Supabase MCP.
 
 ## Status meanings
 
 | Status | Meaning |
 |--------|---------|
 | `active` | Working on it now |
-| `warm` | Paused, could resume this month |
-| `cold` | Real work, shelved, not dead |
 | `seed` | An idea, unbuilt |
+| `done` | Finished |
 
 ## Terminal inserts
 
-When adding data from the terminal, use `source = 'claude-code'`.
+When adding notes from the terminal, use `source = 'claude-code'` (`projects` has no `source` column).
 
 Example — add a seed:
 ```sql
-insert into projects (user_id, title, area, status, source)
-select id, 'your idea here', 'career', 'seed', 'claude-code'
+insert into projects (user_id, title, area, status)
+select id, 'your idea here', 'career', 'seed'
 from auth.users where email = 'jacobhead031@gmail.com';
 ```
 
@@ -82,9 +85,9 @@ from auth.users where email = 'jacobhead031@gmail.com';
 
 Query stalest active project:
 ```sql
-select title, next_action, touched_at
+select title, touched_at
 from projects
-where status in ('active','warm')
+where status = 'active'
 order by touched_at asc
 limit 1;
 ```

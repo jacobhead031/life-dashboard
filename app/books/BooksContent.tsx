@@ -5,7 +5,6 @@ import {
   addBook,
   updateBook,
   deleteBook,
-  updateBookPage,
   markBookFinished,
 } from "@/app/actions";
 import type { Book } from "@/lib/types";
@@ -48,15 +47,19 @@ function NotesEditor({
 }) {
   const [text, setText] = useState(initial ?? "");
   const [saved, setSaved] = useState(true);
+  const [, startTransition] = useTransition();
 
   useEffect(() => {
     setText(initial ?? "");
     setSaved(true);
   }, [initial]);
 
-  async function save() {
-    await updateBook(bookId, { notes: text || null });
-    setSaved(true);
+  function save() {
+    if (text === (initial ?? "")) return setSaved(true);
+    startTransition(async () => {
+      await updateBook(bookId, { notes: text || null });
+      setSaved(true);
+    });
   }
 
   return (
@@ -107,7 +110,7 @@ export function BooksContent({ books }: { books: Book[] }) {
   function toggleNotes(id: string) {
     setExpandedNotes((prev) => {
       const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (!next.delete(id)) next.add(id);
       return next;
     });
   }
@@ -142,16 +145,20 @@ export function BooksContent({ books }: { books: Book[] }) {
     });
   }
 
-  async function handleDelete(book: Book) {
+  function handleDelete(book: Book) {
     if (!confirm(`Delete "${book.title}"?`)) return;
-    await deleteBook(book.id);
+    startTransition(async () => {
+      await deleteBook(book.id);
+    });
   }
 
-  async function handleStatusChange(
+  function handleStatusChange(
     book: Book,
     s: "reading" | "finished" | "abandoned"
   ) {
-    await updateBook(book.id, { status: s });
+    startTransition(async () => {
+      await updateBook(book.id, { status: s });
+    });
   }
 
   return (
@@ -325,7 +332,7 @@ export function BooksContent({ books }: { books: Book[] }) {
                       {book.date_finished && (
                         <span className="d-item-meta" style={{ marginTop: 0 }}>
                           finished{" "}
-                          {new Date(book.date_finished).toLocaleDateString(
+                          {new Date(book.date_finished + "T12:00:00").toLocaleDateString(
                             "en-US",
                             { month: "short", year: "numeric" }
                           )}

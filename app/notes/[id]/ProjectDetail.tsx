@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition, useRef } from "react";
+import { useState, useTransition, useOptimistic, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { updateProject, addProjectNote, toggleNote, deleteNote, recordProjectFile, deleteProjectFile, deleteProject, reorderNote } from "@/app/actions";
 import { createClient } from "@/lib/supabase/client";
@@ -21,6 +21,11 @@ function fmtBytes(n: number): string {
   if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
+
+type NoteOp =
+  | { type: "add"; note: Note }
+  | { type: "patch"; id: string; patch: Partial<Note> }
+  | { type: "delete"; id: string };
 
 function SortableTodoRow({ note, onToggle, onDelete }: {
   note: Note;
@@ -48,6 +53,7 @@ function SortableTodoRow({ note, onToggle, onDelete }: {
         checked={note.done}
         onChange={(e) => onToggle(note.id, e.target.checked)}
         disabled={isTemp}
+        aria-label={`Mark ${note.body} done`}
       />
       <div className="note-stream-body">{note.body}</div>
       <div className="note-stream-time">{relTime(note.created_at)}</div>
@@ -56,6 +62,7 @@ function SortableTodoRow({ note, onToggle, onDelete }: {
         style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
         onClick={() => onDelete(note.id)}
         disabled={isTemp}
+        aria-label={`Delete ${note.body}`}
       >
         ✕
       </button>
@@ -70,7 +77,7 @@ export function ProjectDetail({
 }: {
   project: Project;
   notes: Note[];
-  files: ProjectFile[];
+  files: (ProjectFile & { url?: string })[];
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -83,11 +90,20 @@ export function ProjectDetail({
   const [repoUrl, setRepoUrl]       = useState(initial.repo_url ?? "");
   const [liveUrl, setLiveUrl]       = useState(initial.live_url ?? "");
 
-  const [notes, setNotes]   = useState(initialNotes);
-  const [files, setFiles]   = useState(initialFiles);
+  // Optimistic over props, so revalidated rows replace temp ones when the action lands.
+  const [notes, patchNotes] = useOptimistic(initialNotes, (state, op: NoteOp) =>
+    op.type === "add" ? [...state, op.note]
+    : op.type === "delete" ? state.filter((n) => n.id !== op.id)
+    : state.map((n) => (n.id === op.id ? { ...n, ...op.patch } : n)),
+  );
+  const [files, removeFile] = useOptimistic(initialFiles, (state, id: string) => state.filter((f) => f.id !== id));
+  // Order comes from the data: open by position, done after.
+  const open = notes.filter((n) => !n.done).sort((a, b) => a.position - b.position);
+  const doneNotes = notes.filter((n) => n.done);
   const [noteDraft, setNoteDraft] = useState("");
   const [flash, setFlash]   = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function showFlash(msg: string) {
@@ -111,23 +127,18 @@ export function ProjectDetail({
       position: (notes.length ? Math.min(...notes.map((n) => n.position)) : 0) - 1,
       created_at: new Date().toISOString(),
     };
-    setNotes((prev) => [temp, ...prev]);
     setNoteDraft("");
-    startTransition(async () => { await addProjectNote(initial.id, text); });
+    startTransition(async () => {
+      patchNotes({ type: "add", note: temp });
+      await addProjectNote(initial.id, text);
+    });
   }
 
   function handleToggleNote(id: string, done: boolean) {
-    setNotes((prev) => {
-      const next = prev.map((n) => (n.id === id ? { ...n, done } : n));
-      if (!done)
-        return [
-          ...next.filter((n) => !n.done).sort((a, b) => a.position - b.position),
-          ...next.filter((n) => n.done),
-        ];
-      const toggled = next.find((n) => n.id === id)!;
-      return [...next.filter((n) => n.id !== id), toggled];
+    startTransition(async () => {
+      patchNotes({ type: "patch", id, patch: { done } });
+      await toggleNote(id, done);
     });
-    startTransition(async () => { await toggleNote(id, done); });
   }
 
   const sensors = useSensors(
@@ -138,12 +149,10 @@ export function ProjectDetail({
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const undone = notes.filter((n) => !n.done);
-    const doneNotes = notes.filter((n) => n.done);
-    const from = undone.findIndex((n) => n.id === active.id);
-    const to = undone.findIndex((n) => n.id === over.id);
+    const from = open.findIndex((n) => n.id === active.id);
+    const to = open.findIndex((n) => n.id === over.id);
     if (from === -1 || to === -1) return;
-    const moved = arrayMove(undone, from, to);
+    const moved = arrayMove(open, from, to);
     const prevPos = moved[to - 1]?.position;
     const nextPos = moved[to + 1]?.position;
     const position =
@@ -151,42 +160,55 @@ export function ProjectDetail({
       : prevPos !== undefined ? prevPos + 1
       : nextPos !== undefined ? nextPos - 1
       : 0;
-    moved[to] = { ...moved[to], position };
-    setNotes([...moved, ...doneNotes]);
-    startTransition(async () => { await reorderNote(String(active.id), position, initial.id); });
+    startTransition(async () => {
+      patchNotes({ type: "patch", id: String(active.id), patch: { position } });
+      await reorderNote(String(active.id), position, initial.id);
+    });
   }
 
   function handleDeleteNote(id: string) {
-    setNotes((prev) => prev.filter((n) => n.id !== id));
-    startTransition(async () => { await deleteNote(id); });
+    startTransition(async () => {
+      patchNotes({ type: "delete", id });
+      await deleteNote(id);
+    });
   }
 
   async function handleFileUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploading(true);
+    setUploadError(null);
     const supabase = createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) { setUploading(false); return; }
-    const path = `${user.id}/${initial.id}/${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage.from("project-files").upload(path, file);
-    if (!error) {
-      await recordProjectFile(initial.id, file.name, path, file.size);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("not signed in");
+      const path = `${user.id}/${initial.id}/${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage.from("project-files").upload(path, file);
+      if (error) throw error;
+      try {
+        await recordProjectFile(initial.id, file.name, path, file.size);
+      } catch (err) {
+        // No row means nothing would ever list or delete the object.
+        await supabase.storage.from("project-files").remove([path]);
+        throw err;
+      }
       router.refresh();
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : "upload failed");
     }
     setUploading(false);
     e.target.value = "";
   }
 
-  async function handleDeleteFile(fileId: string, path: string) {
-    setFiles((prev) => prev.filter((f) => f.id !== fileId));
-    const supabase = createClient();
-    await supabase.storage.from("project-files").remove([path]);
-    await deleteProjectFile(fileId);
+  function handleDeleteFile(fileId: string, name: string) {
+    if (!confirm(`Delete "${name}"? This can't be undone.`)) return;
+    startTransition(async () => {
+      removeFile(fileId);
+      await deleteProjectFile(fileId);
+    });
   }
 
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const todoCount = notes.filter((n) => !n.done).length;
+  const todoCount = open.length;
 
   return (
     <>
@@ -200,6 +222,7 @@ export function ProjectDetail({
           if (v && v !== initial.title) save({ title: v }, "title saved");
         }}
         onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+        aria-label="Project title"
       />
 
       {/* Area · Status · touched */}
@@ -239,19 +262,20 @@ export function ProjectDetail({
         {notes.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <DndContext id="todo-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={notes.filter((n) => !n.done).map((n) => n.id)} strategy={verticalListSortingStrategy}>
-                {notes.filter((n) => !n.done).map((n) => (
+              <SortableContext items={open.map((n) => n.id)} strategy={verticalListSortingStrategy}>
+                {open.map((n) => (
                   <SortableTodoRow key={n.id} note={n} onToggle={handleToggleNote} onDelete={handleDeleteNote} />
                 ))}
               </SortableContext>
             </DndContext>
-            {notes.filter((n) => n.done).map((n) => (
+            {doneNotes.map((n) => (
               <div key={n.id} className="note-stream-item done">
                 <input
                   type="checkbox"
                   className="todo-check"
                   checked={n.done}
                   onChange={(e) => handleToggleNote(n.id, e.target.checked)}
+                  aria-label={`Mark ${n.body} not done`}
                 />
                 <div className="note-stream-body">{n.body}</div>
                 <div className="note-stream-time">{relTime(n.created_at)}</div>
@@ -259,6 +283,7 @@ export function ProjectDetail({
                   className="d-btn danger"
                   style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
                   onClick={() => handleDeleteNote(n.id)}
+                  aria-label={`Delete ${n.body}`}
                 >
                   ✕
                 </button>
@@ -344,19 +369,19 @@ export function ProjectDetail({
             {files.map((f) => (
               <div key={f.id} className="file-item">
                 <span style={{ fontSize: "15px" }}>📄</span>
-                <a
-                  className="file-item-name"
-                  href={`${supabaseUrl}/storage/v1/object/public/project-files/${f.path}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {f.name}
-                </a>
+                {f.url ? (
+                  <a className="file-item-name" href={f.url} target="_blank" rel="noreferrer">
+                    {f.name}
+                  </a>
+                ) : (
+                  <span style={{ flex: 1, fontSize: "13.5px", color: "var(--muted)" }}>{f.name}</span>
+                )}
                 <span className="file-item-size">{fmtBytes(f.size)}</span>
                 <button
                   className="d-btn danger"
                   style={{ opacity: 0.5, fontSize: "11px", padding: "2px 6px" }}
-                  onClick={() => handleDeleteFile(f.id, f.path)}
+                  onClick={() => handleDeleteFile(f.id, f.name)}
+                  aria-label={`Delete ${f.name}`}
                 >
                   ✕
                 </button>
@@ -377,6 +402,11 @@ export function ProjectDetail({
         >
           {uploading ? "uploading…" : "↑ attach file"}
         </button>
+        {uploadError && (
+          <div style={{ marginTop: 8, fontFamily: "var(--font-space-mono)", fontSize: "11px", color: "var(--coral)" }}>
+            upload failed: {uploadError}
+          </div>
+        )}
       </div>
 
       <hr className="project-divider" />
@@ -387,7 +417,7 @@ export function ProjectDetail({
           className="d-btn danger"
           style={{ opacity: 0.5 }}
           onClick={() => {
-            if (!confirm(`Delete "${initial.title}"? This can't be undone.`)) return;
+            if (!confirm(`Delete "${initial.title}"? Its to-dos move to the inbox. This can't be undone.`)) return;
             startTransition(async () => {
               await deleteProject(initial.id);
               router.push("/notes");

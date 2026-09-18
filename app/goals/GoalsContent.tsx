@@ -36,7 +36,8 @@ function GoalRow({
       aria-checked={isCurrentMonth ? goal.done : undefined}
       tabIndex={isCurrentMonth ? 0 : undefined}
       onKeyDown={(e) => {
-        if (isCurrentMonth && (e.key === " " || e.key === "Enter")) {
+        // Own keys only, so Enter on the nested ✕ still deletes.
+        if (isCurrentMonth && e.target === e.currentTarget && (e.key === " " || e.key === "Enter")) {
           e.preventDefault();
           onToggle(goal.id, goal.done);
         }
@@ -76,6 +77,7 @@ export function GoalsContent({
   currentMonth: string;
 }) {
   const [, startTransition] = useTransition();
+  const [isCarrying, startCarry] = useTransition();
   const [newGoalText, setNewGoalText] = useState("");
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(
     new Set()
@@ -122,7 +124,7 @@ export function GoalsContent({
   function toggleMonth(month: string) {
     setExpandedMonths((prev) => {
       const next = new Set(prev);
-      next.has(month) ? next.delete(month) : next.add(month);
+      if (!next.delete(month)) next.add(month);
       return next;
     });
   }
@@ -141,8 +143,8 @@ export function GoalsContent({
     (g) => g.month === lastMonth && !g.done && !currentTexts.has(g.text)
   );
 
-  async function handleCarryOver() {
-    await carryOverGoals(lastMonth, currentMonth);
+  function handleCarryOver() {
+    startCarry(async () => { await carryOverGoals(lastMonth, currentMonth); });
   }
 
   // Group by month
@@ -167,8 +169,8 @@ export function GoalsContent({
           <span>
             {carryable.length} incomplete goal{carryable.length !== 1 ? "s" : ""} from {lastMonthName}
           </span>
-          <button className="d-btn" onClick={handleCarryOver}>
-            carry over
+          <button className="d-btn" onClick={handleCarryOver} disabled={isCarrying}>
+            {isCarrying ? "carrying…" : "carry over"}
           </button>
         </div>
       )}

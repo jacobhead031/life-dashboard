@@ -10,6 +10,7 @@ import {
   toggleSchoolItem,
 } from "@/app/actions";
 import type { SchoolClass, SchoolItem } from "@/lib/types";
+import { addDays, todayStr } from "@/lib/utils";
 import { WeekTodo } from "./WeekTodo";
 
 const ACCENTS = ["var(--amber)", "var(--sky)", "var(--green)", "var(--coral)"];
@@ -19,26 +20,25 @@ const MONTH_NAMES = [
   "July", "August", "September", "October", "November", "December",
 ];
 
-function localDateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
 export function SchoolContent({ classes, items }: { classes: SchoolClass[]; items: SchoolItem[] }) {
   const [isPending, startTransition] = useTransition();
+  // Ticks and drags get their own transition so they don't flip the header to "saving…".
+  const [, startQuiet] = useTransition();
   // Calendar and weekly to-do both read this, so a check in either shows in both at once.
   const [optItems, patchItem] = useOptimistic(items, (state, patch: Partial<SchoolItem> & { id: string }) =>
     state.map((it) => (it.id === patch.id ? { ...it, ...patch } : it)),
   );
-  const today = new Date();
-  const todayStr = localDateStr(today);
-  const [month, setMonth] = useState(new Date(today.getFullYear(), today.getMonth(), 1));
+  // Toronto date string, so server and client render the same "today".
+  const today = todayStr();
+  const todayDow = (new Date(`${today}T00:00:00Z`).getUTCDay() + 6) % 7;
+  const [month, setMonth] = useState(() => new Date(Number(today.slice(0, 4)), Number(today.slice(5, 7)) - 1, 1));
 
   // Add-item form
   const [showAdd, setShowAdd] = useState(false);
   const [title, setTitle] = useState("");
   const [classId, setClassId] = useState("");
   const [kind, setKind] = useState<"assignment" | "exam">("assignment");
-  const [dueOn, setDueOn] = useState(todayStr);
+  const [dueOn, setDueOn] = useState(today);
 
   // Classes panel
   const [showClasses, setShowClasses] = useState(false);
@@ -60,20 +60,20 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
   for (const it of optItems) byDate.set(it.due_on, [...(byDate.get(it.due_on) ?? []), it]);
 
   // Weekly to-do: due within 7 days, plus anything overdue and still unchecked.
-  const plus7Str = localDateStr(new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7));
+  const plus7Str = addDays(today, 7);
   const weekItems = optItems
-    .filter((it) => it.due_on <= plus7Str && (it.due_on >= todayStr || !it.done))
+    .filter((it) => it.due_on <= plus7Str && (it.due_on >= today || !it.done))
     .sort((a, b) => a.position - b.position || a.due_on.localeCompare(b.due_on));
 
   function toggle(id: string, done: boolean) {
-    startTransition(async () => {
+    startQuiet(async () => {
       patchItem({ id, done });
       await toggleSchoolItem(id, done);
     });
   }
 
   function reorder(id: string, position: number) {
-    startTransition(async () => {
+    startQuiet(async () => {
       patchItem({ id, position });
       await reorderSchoolItem(id, position);
     });
@@ -85,6 +85,17 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
     setTitle("");
     setShowAdd(false);
     startTransition(() => addSchoolItem(data));
+  }
+
+  function handleDeleteClass(c: SchoolClass) {
+    const n = optItems.filter((it) => it.class_id === c.id).length;
+    if (!confirm(`Delete "${c.name}"? This also deletes its ${n} assignment${n === 1 ? "" : "s"}/exam${n === 1 ? "" : "s"}. This can't be undone.`)) return;
+    startTransition(() => deleteSchoolClass(c.id));
+  }
+
+  function handleDeleteItem(it: SchoolItem) {
+    if (!confirm(`Delete "${it.title}"?`)) return;
+    startTransition(() => deleteSchoolItem(it.id));
   }
 
   function openClassForm(c?: SchoolClass) {
@@ -173,7 +184,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
               </span>
               <span style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
                 <button className="d-btn" onClick={() => openClassForm(c)}>edit</button>
-                <button className="d-btn danger" disabled={isPending} onClick={() => startTransition(() => deleteSchoolClass(c.id))}>delete</button>
+                <button className="d-btn danger" disabled={isPending} onClick={() => handleDeleteClass(c)}>delete</button>
               </span>
             </div>
           ))}
@@ -214,7 +225,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           <div className="school-week">
             {DOW.map((d, i) => {
               const here = classes.filter((c) => c.days.includes(i + 1));
-              const isToday = (today.getDay() + 6) % 7 === i;
+              const isToday = todayDow === i;
               return (
                 <div key={d}>
                   <div className={`school-day${isToday ? " today" : ""}`}>{d}</div>
@@ -229,7 +240,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           </div>
         </section>
 
-        <WeekTodo items={weekItems} accent={accent} clsName={clsName} todayStr={todayStr} onToggle={toggle} onReorder={reorder} />
+        <WeekTodo items={weekItems} accent={accent} clsName={clsName} todayStr={today} onToggle={toggle} onReorder={reorder} />
 
         <section className="card span-6">
           <div className="card-label"><span>due · {MONTH_NAMES[m]}</span></div>
@@ -240,7 +251,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
               if (day < 1 || day > daysInMonth) return <div key={i} className="cal-cell blank" />;
               const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               return (
-                <div key={i} className={`cal-cell${key === todayStr ? " today" : ""}`}>
+                <div key={i} className={`cal-cell${key === today ? " today" : ""}`}>
                   <div className="cal-daynum">{day}</div>
                   {(byDate.get(key) ?? []).map((it) => (
                     <div
@@ -249,13 +260,23 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
                       style={{ "--chip": accent(it.class_id) } as React.CSSProperties}
                       title={`${clsName(it.class_id)} · click to mark ${it.done ? "not done" : "done"}`}
                       onClick={() => toggle(it.id, !it.done)}
+                      role="checkbox"
+                      aria-checked={it.done}
+                      tabIndex={0}
+                      onKeyDown={(e) => {
+                        // Own keys only, so Enter on the nested × still deletes.
+                        if (e.target === e.currentTarget && (e.key === " " || e.key === "Enter")) {
+                          e.preventDefault();
+                          toggle(it.id, !it.done);
+                        }
+                      }}
                     >
                       <span>{it.title}</span>
                       <span className="cal-meta">{clsName(it.class_id)}</span>
                       <button
                         className="cal-x"
-                        aria-label="Delete"
-                        onClick={(e) => { e.stopPropagation(); startTransition(() => deleteSchoolItem(it.id)); }}
+                        aria-label={`Delete ${it.title}`}
+                        onClick={(e) => { e.stopPropagation(); handleDeleteItem(it); }}
                       >×</button>
                     </div>
                   ))}

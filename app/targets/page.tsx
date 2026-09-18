@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { todayStr } from "@/lib/utils";
 import { TargetsContent } from "./TargetsContent";
 
 export default async function TargetsPage() {
@@ -14,7 +15,7 @@ export default async function TargetsPage() {
     .order("year", { ascending: false })
     .order("updated_at", { ascending: false });
 
-  const currentYear = new Date().getFullYear();
+  const currentYear = Number(todayStr().slice(0, 4));
 
   return (
     <div className="wrap">

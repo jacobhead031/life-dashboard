@@ -172,11 +172,6 @@ export type Expense = {
   created_at: string;
 };
 
-export type BudgetSettings = {
-  user_id: string;
-  allowance: number;
-};
-
 export type HealthDay = {
   user_id: string;
   date: string; // YYYY-MM-DD

@@ -116,19 +116,20 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
     });
   }
 
-  async function handleSetActive(id: string) {
-    await setActiveTrack(id);
+  function handleSetActive(id: string) {
+    startTransition(async () => { await setActiveTrack(id); });
   }
 
-  async function handleDelete(track: LearningTrack) {
+  function handleDelete(track: LearningTrack) {
     if (!confirm(`Delete "${track.name}"?`)) return;
-    await deleteTrack(track.id);
+    startTransition(async () => { await deleteTrack(track.id); });
   }
 
-  async function saveLabelEdit(track: LearningTrack) {
+  function saveLabelEdit(track: LearningTrack) {
     setEditingLabel(null);
-    if (labelDraft.trim() !== track.current_label) {
-      await updateTrack(track.id, { current_label: labelDraft.trim() });
+    const label = labelDraft.trim();
+    if (label !== track.current_label) {
+      startTransition(async () => { await updateTrack(track.id, { current_label: label }); });
     }
   }
 
@@ -241,6 +242,15 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
                 className={`track-header${isOpen ? " open" : ""}`}
                 style={{ padding: "14px 18px" }}
                 onClick={() => setExpanded(isOpen ? null : track.id)}
+                role="button"
+                aria-expanded={isOpen}
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.target === e.currentTarget && (e.key === " " || e.key === "Enter")) {
+                    e.preventDefault();
+                    setExpanded(isOpen ? null : track.id);
+                  }
+                }}
               >
                 <TrackRing track={track} />
                 <div style={{ flex: 1, minWidth: 0 }}>

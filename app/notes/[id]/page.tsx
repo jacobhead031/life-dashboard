@@ -21,6 +21,11 @@ export default async function ProjectPage({
 
   if (!project) notFound();
 
+  // Private bucket: links are signed per render, good for a day (tabs get left open).
+  const { data: signed } = files?.length
+    ? await supabase.storage.from("project-files").createSignedUrls(files.map((f) => f.path), 86400)
+    : { data: null };
+
   return (
     <div className="wrap">
       <div className="top" style={{ marginBottom: 24 }}>
@@ -29,7 +34,7 @@ export default async function ProjectPage({
       <ProjectDetail
         project={project}
         notes={notes ?? []}
-        files={files ?? []}
+        files={(files ?? []).map((f) => ({ ...f, url: signed?.find((s) => s.path === f.path)?.signedUrl || undefined }))}
       />
     </div>
   );

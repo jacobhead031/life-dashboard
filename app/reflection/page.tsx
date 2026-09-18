@@ -9,7 +9,7 @@ export default async function ReflectionPage() {
   if (!user) redirect("/login");
 
   const [{ data: reflections }, { data: notes }] = await Promise.all([
-    supabase.from("reflection").select("*").order("created_at"),
+    supabase.from("reflection").select("*").order("updated_at"),
     supabase
       .from("reflection_note")
       .select("*")

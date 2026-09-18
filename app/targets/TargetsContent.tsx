@@ -118,14 +118,14 @@ export function TargetsContent({
     });
   }
 
-  async function handleSave(target: Target, current: number, g: number) {
+  function handleSave(target: Target, current: number, g: number) {
     setEditingId(null);
-    await updateTarget(target.id, current, g);
+    startTransition(async () => { await updateTarget(target.id, current, g); });
   }
 
-  async function handleDelete(target: Target) {
+  function handleDelete(target: Target) {
     if (!confirm(`Delete "${target.name}"?`)) return;
-    await deleteTarget(target.id);
+    startTransition(async () => { await deleteTarget(target.id); });
   }
 
   return (
@@ -286,6 +286,7 @@ export function TargetsContent({
                   <button
                     className="d-btn danger"
                     onClick={() => handleDelete(target)}
+                    aria-label={`Delete ${target.name}`}
                   >
                     ✕
                   </button>

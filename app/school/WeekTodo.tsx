@@ -4,8 +4,10 @@ import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, close
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { SchoolItem } from "@/lib/types";
+import { daysBetween } from "@/lib/utils";
 
-const DOW = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+// Sunday-first to index Date#getDay — SchoolContent's DOW is Monday-first.
+const DOW_SUN = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type RowProps = {
   item: SchoolItem;
@@ -16,8 +18,8 @@ type RowProps = {
 };
 
 function dueLabel(dueOn: string, todayStr: string): { text: string; tone: string } {
-  const days = Math.round((Date.parse(dueOn) - Date.parse(todayStr)) / 86_400_000);
-  const dow = DOW[new Date(`${dueOn}T00:00`).getDay()];
+  const days = daysBetween(todayStr, dueOn);
+  const dow = DOW_SUN[new Date(`${dueOn}T00:00:00Z`).getUTCDay()];
   if (days < 0) return { text: `overdue · ${dow}`, tone: " overdue" };
   if (days === 0) return { text: "today", tone: " today" };
   if (days === 1) return { text: "tomorrow", tone: "" };

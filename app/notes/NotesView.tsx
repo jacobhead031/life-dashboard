@@ -56,7 +56,7 @@ export function NotesView({
   inbox: Note[];
 }) {
   const [draft, setDraft] = useState("");
-  const [flash, setFlash] = useState(false);
+  const [flash, setFlash] = useState("");
   const [isPending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -64,10 +64,16 @@ export function NotesView({
     const text = draft.trim();
     if (!text) return;
     setDraft("");
-    setFlash(true);
-    setTimeout(() => setFlash(false), 2000);
     startTransition(async () => {
-      await quickCapture(text);
+      // Caught here, not thrown to the error boundary: that would unmount the input and lose the text.
+      try {
+        await quickCapture(text);
+        setFlash("✓ captured");
+      } catch {
+        setDraft(text);
+        setFlash("couldn't save — try again");
+      }
+      setTimeout(() => setFlash(""), 2000);
       inputRef.current?.focus();
     });
   }
@@ -86,9 +92,10 @@ export function NotesView({
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCapture()}
           disabled={isPending}
+          aria-label="Capture a thought"
           autoFocus
         />
-        <div className="notes-flash">{flash ? "✓ captured" : ""}</div>
+        <div className="notes-flash" style={flash.startsWith("✓") ? undefined : { color: "var(--coral)" }}>{flash}</div>
       </div>
 
       {/* Inbox */}

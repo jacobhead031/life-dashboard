@@ -4,49 +4,30 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { addBirthday } from "@/app/actions";
 import type { RecurringDate } from "@/lib/types";
+import { daysUntilAnnual, todayStr } from "@/lib/utils";
+import { BirthdayFields, EMPTY_BIRTHDAY } from "@/components/BirthdayFields";
 
 const MONTHS = [
   "Jan","Feb","Mar","Apr","May","Jun",
   "Jul","Aug","Sep","Oct","Nov","Dec",
 ];
-const MONTHS_FULL = [
-  "January","February","March","April","May","June",
-  "July","August","September","October","November","December",
-];
-
-function daysInMonth(month: number): number {
-  return new Date(2024, month, 0).getDate();
-}
-
-function daysUntil(month: number, day: number, today: Date): number {
-  const thisYear = new Date(today.getFullYear(), month - 1, day);
-  const target = thisYear >= today ? thisYear : new Date(today.getFullYear() + 1, month - 1, day);
-  const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-  return Math.round((target.getTime() - todayMidnight.getTime()) / 86_400_000);
-}
 
 export function BirthdaysCard({ birthdays }: { birthdays: RecurringDate[] }) {
   const [showAdd, setShowAdd] = useState(false);
-  const [name, setName] = useState("");
-  const [month, setMonth] = useState(1);
-  const [day, setDay] = useState(1);
-  const [relationship, setRelationship] = useState("");
+  const [draft, setDraft] = useState(EMPTY_BIRTHDAY);
   const [isPending, startTransition] = useTransition();
 
-  const today = new Date();
+  const today = todayStr();
 
   const sorted = [...birthdays].sort(
-    (a, b) => daysUntil(a.month, a.day, today) - daysUntil(b.month, b.day, today)
+    (a, b) => daysUntilAnnual(a.month, a.day, today) - daysUntilAnnual(b.month, b.day, today)
   );
 
   function handleAdd() {
-    if (!name.trim()) return;
-    const data = { name: name.trim(), month, day, relationship: relationship.trim() || null, lead_days: 7 };
+    if (!draft.name.trim()) return;
+    const data = { name: draft.name.trim(), month: draft.month, day: draft.day, relationship: draft.relationship.trim() || null, lead_days: 7 };
     setShowAdd(false);
-    setName("");
-    setMonth(1);
-    setDay(1);
-    setRelationship("");
+    setDraft(EMPTY_BIRTHDAY);
     startTransition(async () => {
       await addBirthday(data);
     });
@@ -62,51 +43,9 @@ export function BirthdaysCard({ birthdays }: { birthdays: RecurringDate[] }) {
       {/* Quick-add form */}
       {showAdd && (
         <div className="add-panel" style={{ marginBottom: 14 }}>
-          <div className="d-form-row">
-            <div className="d-field" style={{ flex: 3 }}>
-              <label>Name</label>
-              <input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Person's name"
-                autoFocus
-                onKeyDown={(e) => e.key === "Enter" && handleAdd()}
-              />
-            </div>
-            <div className="d-field">
-              <label>Relationship</label>
-              <input
-                value={relationship}
-                onChange={(e) => setRelationship(e.target.value)}
-                placeholder="e.g. friend"
-              />
-            </div>
-            <div className="d-field">
-              <label>Month</label>
-              <select
-                value={month}
-                onChange={(e) => {
-                  const m = parseInt(e.target.value);
-                  setMonth(m);
-                  if (day > daysInMonth(m)) setDay(1);
-                }}
-              >
-                {MONTHS_FULL.map((mn, i) => (
-                  <option key={i + 1} value={i + 1}>{mn}</option>
-                ))}
-              </select>
-            </div>
-            <div className="d-field">
-              <label>Day</label>
-              <select value={day} onChange={(e) => setDay(parseInt(e.target.value))}>
-                {Array.from({ length: daysInMonth(month) }, (_, i) => (
-                  <option key={i + 1} value={i + 1}>{i + 1}</option>
-                ))}
-              </select>
-            </div>
-          </div>
+          <BirthdayFields value={draft} onChange={setDraft} relationshipPlaceholder="e.g. friend" compact onEnter={handleAdd} />
           <div className="d-form-actions">
-            <button className="btn primary" onClick={handleAdd} disabled={!name.trim()}>
+            <button className="btn primary" onClick={handleAdd} disabled={!draft.name.trim()}>
               Add birthday
             </button>
             <button className="btn" onClick={() => setShowAdd(false)}>
@@ -124,7 +63,7 @@ export function BirthdaysCard({ birthdays }: { birthdays: RecurringDate[] }) {
       ) : (
         <div style={{ display: "flex", flexWrap: "wrap", gap: "8px 24px", marginBottom: 14 }}>
           {sorted.map((b) => {
-            const days = daysUntil(b.month, b.day, today);
+            const days = daysUntilAnnual(b.month, b.day, today);
             const soon = days <= b.lead_days;
             return (
               <div key={b.id} style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 160 }}>

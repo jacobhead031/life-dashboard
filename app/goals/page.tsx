@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { todayStr } from "@/lib/utils";
 import { GoalsContent } from "./GoalsContent";
 
 export default async function GoalsPage() {
@@ -14,7 +15,7 @@ export default async function GoalsPage() {
     .order("month", { ascending: false })
     .order("created_at", { ascending: true });
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentMonth = todayStr().slice(0, 7);
 
   return (
     <div className="wrap">

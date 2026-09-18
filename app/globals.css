@@ -17,25 +17,6 @@
   --radius:  18px;
 }
 
-/* Expose tokens as Tailwind theme utilities */
-@theme inline {
-  --color-base:    var(--base);
-  --color-base-2:  var(--base-2);
-  --color-card:    var(--card);
-  --color-card-hi: var(--card-hi);
-  --color-line:    var(--line);
-  --color-text:    var(--text);
-  --color-muted:   var(--muted);
-  --color-muted-2: var(--muted-2);
-  --color-amber:   var(--amber);
-  --color-coral:   var(--coral);
-  --color-sky:     var(--sky);
-  --color-green:   var(--green);
-  --font-sans:     var(--font-inter), system-ui, sans-serif;
-  --font-mono:     var(--font-space-mono), monospace;
-  --font-display:  var(--font-space-grotesk), system-ui, sans-serif;
-}
-
 /* ─── Reset ─────────────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
@@ -362,7 +343,7 @@ body {
   border-radius: 6px;
   overflow: hidden;
 }
-.bar i, .bar-fill {
+.bar i {
   display: block;
   height: 100%;
   border-radius: 6px;
@@ -1196,14 +1177,6 @@ body {
   border-bottom: 1px solid rgba(42,46,58,.4);
 }
 .track-header.open { border-bottom-color: transparent; }
-.track-expand {
-  background: var(--card-hi);
-  border-radius: 0 0 12px 12px;
-  padding: 12px 16px 16px;
-  margin-bottom: 12px;
-  border: 1px solid var(--line);
-  border-top: none;
-}
 
 /* Inline edit input */
 .inline-input {
@@ -1394,22 +1367,6 @@ body {
   color: var(--muted);
   margin-bottom: 8px;
 }
-.project-next-input {
-  width: 100%;
-  background: transparent;
-  border: none;
-  border-bottom: 1.5px solid var(--line);
-  outline: none;
-  font-family: var(--font-inter), sans-serif;
-  font-size: 19px;
-  font-weight: 600;
-  color: var(--text);
-  padding: 6px 0;
-  transition: border-color .15s;
-  box-sizing: border-box;
-}
-.project-next-input:focus { border-color: var(--amber); }
-.project-next-input::placeholder { color: var(--muted-2); font-weight: 400; font-style: italic; font-size: 15px; }
 .project-why-input {
   width: 100%;
   background: transparent;
@@ -1546,7 +1503,6 @@ body {
   color: var(--muted-2);
 }
 .sort-status-pill.active { color: var(--green); }
-.sort-status-pill.warm   { color: var(--amber); }
 
 /* ─── Health tab ─────────────────────────────────────────────── */
 .stat-num {
@@ -1854,7 +1810,8 @@ body {
   padding: 0 2px;
   opacity: 0;
 }
-.cal-chip:hover .cal-x { opacity: 1; }
+.cal-chip:hover .cal-x,
+.cal-x:focus-visible { opacity: 1; }
 .cal-x:hover { color: var(--coral); }
 
 /* weekly to-do rows (reuse .note-stream-item / .todo-check / .todo-drag-handle) */
@@ -1867,3 +1824,17 @@ body {
 .todo-class { color: var(--muted-2); font-size: 12px; margin-left: 10px; }
 .todo-due.today { color: var(--amber); }
 .todo-due.overdue { color: var(--coral); }
+
+/* ─── Touch + small screens ──────────────────────────────────── */
+/* No hover on touch, so hover-revealed delete buttons stay faintly visible. */
+@media (hover: none) {
+  .cal-x, .expense-delete { opacity: .6; }
+}
+/* 7-col grids keep readable columns and scroll sideways inside the card. */
+@media (max-width: 640px) {
+  .grid-bento > .card { min-width: 0; } /* else the 1fr track grows to the grid's min-content */
+  .school-week, .cal-grid {
+    grid-template-columns: repeat(7, minmax(92px, 1fr));
+    overflow-x: auto;
+  }
+}

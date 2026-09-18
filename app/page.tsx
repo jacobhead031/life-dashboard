@@ -1,6 +1,23 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
-import { getUpcomingBirthday } from "@/lib/utils";
+import { addDays, daysBetween, getUpcomingBirthday, todayStr, weekMonday } from "@/lib/utils";
+import { Greeting } from "@/components/Greeting";
+import { SignOutButton } from "@/components/SignOutButton";
+import { BirthdayBanner } from "@/components/BirthdayBanner";
+import { SchoolBanner } from "@/components/SchoolBanner";
+import { SchoolWeekCard, type SchoolItemWithClass } from "@/components/cards/SchoolWeekCard";
+import { StartSomethingCard } from "@/components/cards/StartSomethingCard";
+import { MonthlyGoalsCard } from "@/components/cards/MonthlyGoalsCard";
+import { BooksCard } from "@/components/cards/BooksCard";
+import { LearningCard } from "@/components/cards/LearningCard";
+import { TargetsCard } from "@/components/cards/TargetsCard";
+import { SunriseSunsetCard } from "@/components/cards/SunriseSunsetCard";
+import { ReflectionCard } from "@/components/cards/ReflectionCard";
+import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
+import { HabitsCard } from "@/components/cards/HabitsCard";
+import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
+import { HealthCard } from "@/components/cards/HealthCard";
+import { TabNav } from "@/components/TabNav";
 
 type SunTimes = {
   sunrise: string;
@@ -46,24 +63,6 @@ async function fetchTorontoSunTimes(date: string): Promise<SunTimes | null> {
   }
 }
 
-import { Greeting } from "@/components/Greeting";
-import { SignOutButton } from "@/components/SignOutButton";
-import { BirthdayBanner } from "@/components/BirthdayBanner";
-import { SchoolBanner } from "@/components/SchoolBanner";
-import { SchoolWeekCard, type SchoolItemWithClass } from "@/components/cards/SchoolWeekCard";
-import { StartSomethingCard } from "@/components/StartSomethingCard";
-import { MonthlyGoalsCard } from "@/components/cards/MonthlyGoalsCard";
-import { BooksCard } from "@/components/cards/BooksCard";
-import { LearningCard } from "@/components/cards/LearningCard";
-import { TargetsCard } from "@/components/cards/TargetsCard";
-import { SunriseSunsetCard } from "@/components/cards/SunriseSunsetCard";
-import { ReflectionCard } from "@/components/cards/ReflectionCard";
-import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
-import { HabitsCard } from "@/components/cards/HabitsCard";
-import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
-import { HealthCard } from "@/components/cards/HealthCard";
-import { TabNav } from "@/components/TabNav";
-
 export default async function HomePage() {
   const supabase = await createClient();
   const {
@@ -71,26 +70,15 @@ export default async function HomePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  const currentMonthStr = `${currentYear}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const today = todayStr();
+  const currentYear = Number(today.slice(0, 4));
+  const currentMonthStr = today.slice(0, 7);
+
+  const weekStr = weekMonday(today);
+  const thirtyAgoStr = addDays(today, -30);
+  const plus7Str = addDays(today, 7);
 
   // Fetch all data in parallel — RLS ensures we only get this user's rows
-  const todayStr = now.toISOString().split("T")[0];
-  // Monday of current week
-  const dow = now.getUTCDay();
-  const weekMonday = new Date(now);
-  weekMonday.setUTCDate(now.getUTCDate() - (dow === 0 ? 6 : dow - 1));
-  const weekStr = weekMonday.toISOString().split("T")[0];
-
-  const thirtyAgo = new Date(now);
-  thirtyAgo.setUTCDate(thirtyAgo.getUTCDate() - 30);
-  const thirtyAgoStr = thirtyAgo.toISOString().split("T")[0];
-
-  const plus7 = new Date(now);
-  plus7.setUTCDate(plus7.getUTCDate() + 7);
-  const plus7Str = plus7.toISOString().split("T")[0];
-
   const [
     { data: goals },
     { data: liveProjects },
@@ -142,7 +130,7 @@ export default async function HomePage() {
       .order("created_at", { ascending: false }),
     supabase.from("recurring_date").select("*"),
     supabase.from("sunrise_sunset").select("*").eq("month", currentMonthStr).maybeSingle(),
-    fetchTorontoSunTimes(todayStr),
+    fetchTorontoSunTimes(today),
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
     supabase.from("weekly_goal").select("*").eq("week", weekStr).order("created_at"),
@@ -171,16 +159,16 @@ export default async function HomePage() {
     (b) =>
       b.status === "finished" &&
       b.date_finished &&
-      new Date(b.date_finished).getFullYear() === currentYear
+      b.date_finished.startsWith(`${currentYear}-`)
   ).length;
 
   // Compute nearest upcoming birthday within its lead window
-  const upcoming = getUpcomingBirthday(birthdays ?? [], now);
+  const upcoming = getUpcomingBirthday(birthdays ?? [], today);
 
   // Nearest unfinished assignment/exam due today or within 7 days
   const school = (schoolItems ?? []) as SchoolItemWithClass[];
-  const nextDue = school.find((i) => !i.done && i.due_on >= todayStr);
-  const dueIn = nextDue ? Math.round((Date.parse(nextDue.due_on) - Date.parse(todayStr)) / 86_400_000) : 0;
+  const nextDue = school.find((i) => !i.done && i.due_on >= today);
+  const dueIn = nextDue ? daysBetween(today, nextDue.due_on) : 0;
 
   return (
     <div className="wrap">
@@ -214,7 +202,7 @@ export default async function HomePage() {
       {/* ── Bento grid ─────────────────────────────────────── */}
       <div className="grid-bento">
         {/* Row 1 — habits (span 6) */}
-        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={todayStr} />
+        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={today} />
 
         {/* Row 2 — weekly goals (span 6) */}
         <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} />
@@ -223,7 +211,7 @@ export default async function HomePage() {
         <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} />
 
         {/* School — this week's assignments and exams (span 6) */}
-        <SchoolWeekCard items={school} weekStr={weekStr} todayStr={todayStr} />
+        <SchoolWeekCard items={school} weekStr={weekStr} todayStr={today} />
 
         {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
         <MonthlyGoalsCard
