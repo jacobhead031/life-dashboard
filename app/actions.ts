@@ -809,6 +809,13 @@ export async function reorderSchoolItem(id: string, position: number) {
   revalidatePath("/school");
 }
 
+export async function moveSchoolItem(id: string, dueOn: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("school_item").update({ due_on: fmt(dueOn, DATE, "Due date") }).eq("id", id));
+  revalidatePath("/school");
+  revalidatePath("/");
+}
+
 export async function toggleSchoolItem(id: string, done: boolean) {
   const { supabase } = await authed();
   await ok(supabase.from("school_item").update({ done }).eq("id", id));

@@ -1774,6 +1774,7 @@ body {
 }
 .cal-cell.blank { border-color: transparent; }
 .cal-cell.today { border-color: var(--amber); }
+.cal-cell.drop { border-color: var(--sky); background: rgba(255,255,255,.04); }
 .cal-daynum {
   font-family: var(--font-space-mono), monospace;
   font-size: 11px;
@@ -1798,7 +1799,7 @@ body {
 .cal-chip.exam { font-weight: 600; background: rgba(231,111,81,.08); }
 .cal-chip.done { text-decoration: line-through; opacity: .45; }
 .cal-meta { font-size: 10.5px; color: var(--muted-2); text-decoration: none; }
-.cal-grid .cal-chip { cursor: pointer; }
+.cal-grid .cal-chip { cursor: pointer; touch-action: manipulation; user-select: none; -webkit-touch-callout: none; }
 .cal-x {
   margin-left: auto;
   background: none;

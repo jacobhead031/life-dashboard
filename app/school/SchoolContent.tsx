@@ -1,10 +1,12 @@
 "use client";
 
 import { useOptimistic, useState, useTransition } from "react";
+import { DndContext, DragOverlay, MouseSensor, TouchSensor, useDraggable, useDroppable, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import {
   addSchoolItem,
   deleteSchoolClass,
   deleteSchoolItem,
+  moveSchoolItem,
   reorderSchoolItem,
   saveSchoolClass,
   toggleSchoolItem,
@@ -19,6 +21,26 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+// A calendar day: drop a chip here to move its due date.
+function DayCell({ date, isToday, children }: { date: string; isToday: boolean; children: React.ReactNode }) {
+  const { setNodeRef, isOver } = useDroppable({ id: date });
+  return (
+    <div ref={setNodeRef} className={`cal-cell${isToday ? " today" : ""}${isOver ? " drop" : ""}`}>
+      {children}
+    </div>
+  );
+}
+
+// Pointer-drag only: the chip keeps its own checkbox role and keys, so dnd-kit's attributes are left off.
+function DragChip({ id, children, ...rest }: { id: string } & React.HTMLAttributes<HTMLDivElement>) {
+  const { setNodeRef, listeners, isDragging } = useDraggable({ id });
+  return (
+    <div ref={setNodeRef} {...rest} {...listeners} style={{ ...rest.style, ...(isDragging ? { opacity: 0.3 } : {}) }}>
+      {children}
+    </div>
+  );
+}
 
 export function SchoolContent({ classes, items }: { classes: SchoolClass[]; items: SchoolItem[] }) {
   const [isPending, startTransition] = useTransition();
@@ -76,6 +98,25 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
     startQuiet(async () => {
       patchItem({ id, position });
       await reorderSchoolItem(id, position);
+    });
+  }
+
+  // Calendar drag: mouse needs 5px of travel so a click still toggles; touch is long-press so the page still scrolls.
+  const calSensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 250, tolerance: 5 } }),
+  );
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragging = optItems.find((it) => it.id === draggingId);
+
+  function handleCalDrop({ active, over }: DragEndEvent) {
+    setDraggingId(null);
+    const id = String(active.id);
+    const due_on = over ? String(over.id) : null;
+    if (!due_on || optItems.find((it) => it.id === id)?.due_on === due_on) return;
+    startQuiet(async () => {
+      patchItem({ id, due_on });
+      await moveSchoolItem(id, due_on);
     });
   }
 
@@ -243,7 +284,14 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
         <WeekTodo items={weekItems} accent={accent} clsName={clsName} todayStr={today} onToggle={toggle} onReorder={reorder} />
 
         <section className="card span-6">
-          <div className="card-label"><span>due · {MONTH_NAMES[m]}</span></div>
+          <div className="card-label"><span>due · {MONTH_NAMES[m]}</span><span>drag to reschedule</span></div>
+          <DndContext
+            id="school-cal-dnd"
+            sensors={calSensors}
+            onDragStart={({ active }) => setDraggingId(String(active.id))}
+            onDragEnd={handleCalDrop}
+            onDragCancel={() => setDraggingId(null)}
+          >
           <div className="cal-grid">
             {DOW.map((d) => <div key={d} className="school-day">{d}</div>)}
             {Array.from({ length: cells }, (_, i) => {
@@ -251,14 +299,15 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
               if (day < 1 || day > daysInMonth) return <div key={i} className="cal-cell blank" />;
               const key = `${y}-${String(m + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
               return (
-                <div key={i} className={`cal-cell${key === today ? " today" : ""}`}>
+                <DayCell key={i} date={key} isToday={key === today}>
                   <div className="cal-daynum">{day}</div>
                   {(byDate.get(key) ?? []).map((it) => (
-                    <div
+                    <DragChip
                       key={it.id}
+                      id={it.id}
                       className={`cal-chip${it.kind === "exam" ? " exam" : ""}${it.done ? " done" : ""}`}
                       style={{ "--chip": accent(it.class_id) } as React.CSSProperties}
-                      title={`${clsName(it.class_id)} · click to mark ${it.done ? "not done" : "done"}`}
+                      title={`${clsName(it.class_id)} · click to mark ${it.done ? "not done" : "done"}, drag to change the date`}
                       onClick={() => toggle(it.id, !it.done)}
                       role="checkbox"
                       aria-checked={it.done}
@@ -278,12 +327,21 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
                         aria-label={`Delete ${it.title}`}
                         onClick={(e) => { e.stopPropagation(); handleDeleteItem(it); }}
                       >×</button>
-                    </div>
+                    </DragChip>
                   ))}
-                </div>
+                </DayCell>
               );
             })}
           </div>
+          <DragOverlay dropAnimation={null}>
+            {dragging && (
+              <div className={`cal-chip${dragging.kind === "exam" ? " exam" : ""}`} style={{ "--chip": accent(dragging.class_id), background: "var(--card-hi)", cursor: "grabbing" } as React.CSSProperties}>
+                <span>{dragging.title}</span>
+                <span className="cal-meta">{clsName(dragging.class_id)}</span>
+              </div>
+            )}
+          </DragOverlay>
+          </DndContext>
         </section>
       </div>
     </>
