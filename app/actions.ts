@@ -235,6 +235,30 @@ export async function deleteBook(id: string) {
 
 // ── Learning tracks ───────────────────────────────────────────
 
+// http(s) only, so a stored link can never be a javascript: URL.
+function link(v: string | null | undefined) {
+  if (v == null || v.trim() === "") return null;
+  const u = v.trim();
+  if (u.length > 2000 || !/^https?:\/\/\S+$/i.test(u)) throw new Error("Link must start with http:// or https://");
+  return u;
+}
+
+type StepIn = { id: string; title: string; done: boolean };
+
+// Steps live in one jsonb column; the counters and current_label are derived so the home card keeps reading them.
+// ponytail: whole-array write, last save wins. Fine for one user; move to a learning_step table if two tabs ever fight.
+function stepColumns(list: StepIn[]) {
+  if (!Array.isArray(list) || list.length > 200) throw new Error("A track can have at most 200 steps");
+  const steps = list.map((s) => ({ id: str(s.id, "Step id", 64), title: cap(s.title, "Step", 300) ?? "", done: s.done === true }));
+  if (new Set(steps.map((s) => s.id)).size !== steps.length) throw new Error("Duplicate step");
+  return {
+    steps,
+    total_steps: steps.length,
+    completed_steps: steps.filter((s) => s.done).length,
+    current_label: steps.find((s) => !s.done)?.title ?? "",
+  };
+}
+
 export async function addTrack(data: {
   name: string;
   total_steps: number;
@@ -242,13 +266,13 @@ export async function addTrack(data: {
   accent: "amber" | "sky";
 }) {
   const { supabase, user } = await authed();
+  const n = Math.min(Math.floor(num(data.total_steps, "Total steps", 0)), 200);
+  const first = cap(data.current_label, "Label", 300) ?? "";
   await ok(supabase.from("learning_track").insert({
     user_id: user.id,
     name: str(data.name, "Name"),
-    total_steps: num(data.total_steps, "Total steps", 0),
-    current_label: cap(data.current_label, "Label"),
     accent: data.accent,
-    completed_steps: 0,
+    ...stepColumns(Array.from({ length: n }, (_, i) => ({ id: crypto.randomUUID(), title: i === 0 ? first : "", done: false }))),
   }));
   revalidatePath("/learning");
   revalidatePath("/");
@@ -258,22 +282,25 @@ export async function updateTrack(
   id: string,
   data: {
     name?: string;
-    total_steps?: number;
-    completed_steps?: number;
-    current_label?: string;
     accent?: "amber" | "sky";
+    url?: string | null;
+    notes?: string | null;
   }
 ) {
   const { supabase } = await authed();
-  if (data.total_steps !== undefined) num(data.total_steps, "Total steps", 0);
-  if (data.completed_steps !== undefined) num(data.completed_steps, "Completed steps", 0);
   await ok(supabase.from("learning_track").update({
     name: optStr(data.name, "Name"),
-    total_steps: data.total_steps,
-    completed_steps: data.completed_steps,
-    current_label: cap(data.current_label, "Label"),
     accent: data.accent,
+    url: data.url === undefined ? undefined : link(data.url),
+    notes: cap(data.notes, "Notes", 10000),
   }).eq("id", id));
+  revalidatePath("/learning");
+  revalidatePath("/");
+}
+
+export async function saveTrackSteps(id: string, steps: StepIn[]) {
+  const { supabase } = await authed();
+  await ok(supabase.from("learning_track").update(stepColumns(steps)).eq("id", id));
   revalidatePath("/learning");
   revalidatePath("/");
 }

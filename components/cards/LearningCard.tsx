@@ -60,7 +60,13 @@ export function LearningCard({ tracks }: { tracks: LearningTrack[] }) {
                 />
               </svg>
               <div>
-                <div className="l-name">{track.name}</div>
+                <div className="l-name">
+                  {track.url ? (
+                    <a href={track.url} target="_blank" rel="noopener noreferrer" className="l-link">
+                      {track.name} ↗
+                    </a>
+                  ) : track.name}
+                </div>
                 <div className="l-meta">{metaLabel}</div>
               </div>
               <span className="l-pct">{pctLabel}</span>

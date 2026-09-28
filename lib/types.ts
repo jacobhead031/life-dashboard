@@ -35,13 +35,18 @@ export type Book = {
   updated_at: string;
 };
 
+export type LearningStep = { id: string; title: string; done: boolean };
+
 export type LearningTrack = {
   id: string;
   user_id: string;
   name: string;
+  steps: LearningStep[]; // display order; the three fields below are derived from it on every save
   total_steps: number;
   completed_steps: number;
-  current_label: string;
+  current_label: string; // title of the first unchecked step
+  url: string | null;
+  notes: string | null;
   accent: "amber" | "sky";
   updated_at: string;
 };

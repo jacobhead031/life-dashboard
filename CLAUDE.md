@@ -31,6 +31,14 @@ size bigint, created_at timestamptz
 - Deleting a project cascades to `project_files` rows; `deleteProject` removes the storage objects first. Its notes fall back to the inbox (`on delete set null`).
 
 
+### `learning_track`
+```sql
+id uuid, user_id uuid, name text, steps jsonb (default '[]'), total_steps int, completed_steps int,
+current_label text, accent text ('amber' | 'sky'), url text, notes text, updated_at timestamptz
+```
+- `steps` is `[{ id, title, done }]` in display order and is the source of truth. `total_steps`, `completed_steps` and `current_label` (title of the first unchecked step) are derived and rewritten with it by `saveTrackSteps` — never write them on their own.
+- `url` must be http(s); it renders as the course link on `/learning` and on the home card.
+
 ### `school_class`
 ```sql
 id uuid, user_id uuid, name text, days int[] (ISO weekday 1=Mon..7=Sun),

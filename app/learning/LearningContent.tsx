@@ -1,13 +1,17 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import {
   addTrack,
   updateTrack,
+  saveTrackSteps,
   setActiveTrack,
   deleteTrack,
 } from "@/app/actions";
-import type { LearningTrack } from "@/lib/types";
+import type { LearningStep, LearningTrack } from "@/lib/types";
 
 const CIRC = 2 * Math.PI * 16;
 
@@ -33,57 +37,120 @@ function TrackRing({ track }: { track: LearningTrack }) {
   );
 }
 
-function StepList({
-  track,
-  onUpdate,
+function StepRow({
+  step,
+  n,
+  onToggle,
+  onRename,
+  onDelete,
 }: {
-  track: LearningTrack;
-  onUpdate: (n: number) => void;
+  step: LearningStep;
+  n: number;
+  onToggle: () => void;
+  onRename: (title: string) => void;
+  onDelete: () => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: step.id });
   return (
-    <div className="steps">
-      {Array.from({ length: track.total_steps }, (_, i) => i + 1).map((n) => {
-        const done = n <= track.completed_steps;
-        const isCurrent = n === track.completed_steps + 1;
-        return (
-          <div
-            key={n}
-            className="step-item"
-            onClick={() => {
-              if (n === track.completed_steps) onUpdate(n - 1);
-              else if (n > track.completed_steps) onUpdate(n);
-            }}
-            role="checkbox"
-            aria-checked={done}
-            tabIndex={0}
-            onKeyDown={(e) => {
-              if (e.key === " " || e.key === "Enter") {
-                e.preventDefault();
-                if (n === track.completed_steps) onUpdate(n - 1);
-                else if (n > track.completed_steps) onUpdate(n);
-              }
-            }}
-          >
-            <div className={`step-check${done ? " done" : ""}`}>
-              {done && "✓"}
-            </div>
-            <span
-              className={`step-label${done ? " done" : isCurrent ? " current" : ""}`}
-            >
-              Step {n}
-              {isCurrent && track.current_label
-                ? ` — ${track.current_label}`
-                : ""}
-            </span>
-          </div>
-        );
-      })}
+    <div
+      ref={setNodeRef}
+      className="step-item"
+      style={{
+        cursor: "default",
+        opacity: isDragging ? 0.7 : 1,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}),
+      }}
+    >
+      <span className="todo-drag-handle" {...attributes} {...listeners} aria-label={`Move step ${n}`}>⠿</span>
+      <button
+        className={`step-check${step.done ? " done" : ""}`}
+        style={{ cursor: "pointer", padding: 0 }}
+        role="checkbox"
+        aria-checked={step.done}
+        aria-label={`Step ${n}${step.title ? `: ${step.title}` : ""}`}
+        onClick={onToggle}
+      >
+        {step.done && "✓"}
+      </button>
+      {/* Uncontrolled + keyed on the saved title, so fresh server data replaces the draft without an effect. */}
+      <input
+        key={step.title}
+        className={`step-title${step.done ? " done" : ""}`}
+        defaultValue={step.title}
+        placeholder={`Step ${n}`}
+        aria-label={`Step ${n} name`}
+        onBlur={(e) => { if (e.target.value.trim() !== step.title) onRename(e.target.value.trim()); }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") e.currentTarget.blur();
+          if (e.key === "Escape") { e.currentTarget.value = step.title; e.currentTarget.blur(); }
+        }}
+      />
+      <button className="cal-x step-x" aria-label={`Delete step ${n}`} onClick={onDelete}>×</button>
     </div>
   );
 }
 
-export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
+function StepList({ track, onChange }: { track: LearningTrack; onChange: (steps: LearningStep[]) => void }) {
+  const steps = track.steps;
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  const patch = (id: string, p: Partial<LearningStep>) => steps.map((s) => (s.id === id ? { ...s, ...p } : s));
+
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const from = steps.findIndex((s) => s.id === active.id);
+    const to = steps.findIndex((s) => s.id === over.id);
+    if (from !== -1 && to !== -1) onChange(arrayMove(steps, from, to));
+  }
+
+  function handleDelete(step: LearningStep, n: number) {
+    // Only named or ticked steps are worth a second thought.
+    if ((step.title || step.done) && !confirm(`Delete step ${n}${step.title ? ` "${step.title}"` : ""}?`)) return;
+    onChange(steps.filter((s) => s.id !== step.id));
+  }
+
+  return (
+    <div className="steps">
+      <DndContext id={`steps-${track.id}`} sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <SortableContext items={steps.map((s) => s.id)} strategy={verticalListSortingStrategy}>
+          {steps.map((s, i) => (
+            <StepRow
+              key={s.id}
+              step={s}
+              n={i + 1}
+              onToggle={() => onChange(patch(s.id, { done: !s.done }))}
+              onRename={(title) => onChange(patch(s.id, { title }))}
+              onDelete={() => handleDelete(s, i + 1)}
+            />
+          ))}
+        </SortableContext>
+      </DndContext>
+      <input
+        className="step-title step-add"
+        placeholder="+ add a step"
+        aria-label="Add a step"
+        onKeyDown={(e) => {
+          const title = e.currentTarget.value.trim();
+          if (e.key !== "Enter" || !title) return;
+          onChange([...steps, { id: crypto.randomUUID(), title, done: false }]);
+          e.currentTarget.value = "";
+        }}
+      />
+    </div>
+  );
+}
+
+export function LearningContent({ tracks: serverTracks }: { tracks: LearningTrack[] }) {
   const [isPending, startTransition] = useTransition();
+  // Ticks, renames and drags get their own transition so they don't flip the header to "saving…".
+  const [, startQuiet] = useTransition();
+  const [tracks, patchTrack] = useOptimistic(serverTracks, (state, patch: Partial<LearningTrack> & { id: string }) =>
+    state.map((t) => (t.id === patch.id ? { ...t, ...patch } : t)),
+  );
   const [showAdd, setShowAdd] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -92,10 +159,6 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
   const [totalSteps, setTotalSteps] = useState("5");
   const [currentLabel, setCurrentLabel] = useState("");
   const [accent, setAccent] = useState<"amber" | "sky">("sky");
-
-  // Per-track label edit state
-  const [editingLabel, setEditingLabel] = useState<string | null>(null);
-  const [labelDraft, setLabelDraft] = useState("");
 
   function handleAdd() {
     if (!name.trim()) return;
@@ -110,10 +173,31 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
     });
   }
 
-  function handleStep(track: LearningTrack, n: number) {
-    startTransition(async () => {
-      await updateTrack(track.id, { completed_steps: n });
+  function handleSteps(track: LearningTrack, steps: LearningStep[]) {
+    startQuiet(async () => {
+      patchTrack({
+        id: track.id,
+        steps,
+        total_steps: steps.length,
+        completed_steps: steps.filter((s) => s.done).length,
+        current_label: steps.find((s) => !s.done)?.title ?? "",
+      });
+      await saveTrackSteps(track.id, steps);
     });
+  }
+
+  function handleField(track: LearningTrack, patch: { name?: string; url?: string | null; notes?: string | null; accent?: "amber" | "sky" }) {
+    startQuiet(async () => {
+      patchTrack({ id: track.id, ...patch });
+      await updateTrack(track.id, patch);
+    });
+  }
+
+  function handleLink(track: LearningTrack, raw: string) {
+    const v = raw.trim();
+    // "coursera.org/x" is what people paste; the server only accepts http(s).
+    const url = !v ? null : /^https?:\/\//i.test(v) ? v : `https://${v}`;
+    if (url !== track.url) handleField(track, { url });
   }
 
   function handleSetActive(id: string) {
@@ -123,14 +207,6 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
   function handleDelete(track: LearningTrack) {
     if (!confirm(`Delete "${track.name}"?`)) return;
     startTransition(async () => { await deleteTrack(track.id); });
-  }
-
-  function saveLabelEdit(track: LearningTrack) {
-    setEditingLabel(null);
-    const label = labelDraft.trim();
-    if (label !== track.current_label) {
-      startTransition(async () => { await updateTrack(track.id, { current_label: label }); });
-    }
   }
 
   return (
@@ -281,12 +357,22 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
                     <span style={{ color: accentColor }}>{pct}%</span>
                   </div>
                 </div>
+                {track.url && (
+                  <a
+                    href={track.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="card-nav"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    open course ↗
+                  </a>
+                )}
                 <span
                   style={{
                     color: "var(--muted-2)",
                     fontSize: "11px",
                     fontFamily: "var(--font-space-mono)",
-                    marginLeft: "auto",
                     flexShrink: 0,
                   }}
                 >
@@ -302,64 +388,46 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
                     borderTop: "1px solid var(--line)",
                   }}
                 >
-                  <StepList
-                    track={track}
-                    onUpdate={(n) => handleStep(track, n)}
-                  />
+                  <StepList track={track} onChange={(steps) => handleSteps(track, steps)} />
 
-                  {/* Current step label edit */}
-                  <div
-                    style={{
-                      marginTop: 14,
-                      padding: "12px",
-                      background: "var(--base-2)",
-                      borderRadius: "9px",
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontFamily: "var(--font-space-mono)",
-                        fontSize: "10px",
-                        letterSpacing: "1px",
-                        textTransform: "uppercase",
-                        color: "var(--muted-2)",
-                        marginBottom: "7px",
-                      }}
-                    >
-                      current step label
-                    </div>
-                    {editingLabel === track.id ? (
-                      <div style={{ display: "flex", gap: 8 }}>
-                        <input
-                          className="inline-input"
-                          value={labelDraft}
-                          onChange={(e) => setLabelDraft(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter") saveLabelEdit(track);
-                            if (e.key === "Escape") setEditingLabel(null);
-                          }}
-                          autoFocus
-                          style={{ flex: 1 }}
-                        />
-                        <button
-                          className="d-btn"
-                          onClick={() => saveLabelEdit(track)}
-                        >
-                          save
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="d-btn"
-                        style={{ textTransform: "none", fontSize: "13px" }}
-                        onClick={() => {
-                          setEditingLabel(track.id);
-                          setLabelDraft(track.current_label);
+                  {/* Name, link, notes — each saves when you leave the field */}
+                  <div className="d-form-row" style={{ marginTop: 14 }}>
+                    <div className="d-field" style={{ flex: 2 }}>
+                      <label>Name</label>
+                      <input
+                        key={track.name}
+                        defaultValue={track.name}
+                        onBlur={(e) => {
+                          const v = e.target.value.trim();
+                          if (v && v !== track.name) handleField(track, { name: v });
+                          else e.target.value = track.name;
                         }}
-                      >
-                        {track.current_label || "click to add step label…"}
-                      </button>
-                    )}
+                        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                      />
+                    </div>
+                    <div className="d-field" style={{ flex: 3 }}>
+                      <label>Course link</label>
+                      <input
+                        key={track.url ?? ""}
+                        type="url"
+                        defaultValue={track.url ?? ""}
+                        placeholder="https://…"
+                        onBlur={(e) => handleLink(track, e.target.value)}
+                        onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
+                      />
+                    </div>
+                  </div>
+                  <div className="d-field">
+                    <label>Notes</label>
+                    <textarea
+                      key={track.notes ?? ""}
+                      defaultValue={track.notes ?? ""}
+                      placeholder="Login details, where you left off, anything worth remembering…"
+                      onBlur={(e) => {
+                        const v = e.target.value.trim() || null;
+                        if (v !== track.notes) handleField(track, { notes: v });
+                      }}
+                    />
                   </div>
 
                   {/* Actions */}
@@ -371,7 +439,11 @@ export function LearningContent({ tracks }: { tracks: LearningTrack[] }) {
                       flexWrap: "wrap",
                     }}
                   >
-                    {track.accent !== "amber" && (
+                    {track.accent === "amber" ? (
+                      <button className="d-btn" onClick={() => handleField(track, { accent: "sky" })}>
+                        ☆ remove active focus
+                      </button>
+                    ) : (
                       <button
                         className="d-btn"
                         onClick={() => handleSetActive(track.id)}
