@@ -507,7 +507,15 @@ export async function addWeeklyGoal(text: string, week: string, target: number) 
   const { supabase, user } = await authed();
   fmt(week, DATE, "Week");
   num(target, "Target", 0); // 0 = checkbox goal
-  await ok(supabase.from("weekly_goal").insert({ user_id: user.id, text: str(text, "Goal"), week, done: false, target, current: 0 }));
+  // New goals land at the bottom of that week.
+  const last = await ok(supabase.from("weekly_goal").select("position").eq("week", week).order("position", { ascending: false }).limit(1).maybeSingle());
+  await ok(supabase.from("weekly_goal").insert({ user_id: user.id, text: str(text, "Goal"), week, done: false, target, current: 0, position: (last?.position ?? 0) + 1 }));
+  revalidatePath("/");
+}
+
+export async function reorderWeeklyGoal(id: string, position: number) {
+  const { supabase } = await authed();
+  await ok(supabase.from("weekly_goal").update({ position: num(position, "Position") }).eq("id", id));
   revalidatePath("/");
 }
 

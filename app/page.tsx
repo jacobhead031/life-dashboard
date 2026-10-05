@@ -135,7 +135,7 @@ export default async function HomePage() {
     fetchTorontoSunTimes(today),
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
-    supabase.from("weekly_goal").select("*").eq("week", weekStr).order("created_at"),
+    supabase.from("weekly_goal").select("*").eq("week", weekStr).order("position").order("created_at"),
     supabase
       .from("health_day")
       .select("*")

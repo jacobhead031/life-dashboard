@@ -1,8 +1,35 @@
 "use client";
 
 import { useState, useEffect, useTransition, useRef } from "react";
-import { toggleWeeklyGoal, addWeeklyGoal, deleteWeeklyGoal, setWeeklyGoalProgress } from "@/app/actions";
+import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
+import { toggleWeeklyGoal, addWeeklyGoal, deleteWeeklyGoal, reorderWeeklyGoal, setWeeklyGoalProgress } from "@/app/actions";
 import type { WeeklyGoal } from "@/lib/types";
+
+// One draggable row: handle on the left, the goal itself as children.
+function SortableGoal({ goal, children }: { goal: WeeklyGoal; children: React.ReactNode }) {
+  const isTemp = goal.id.startsWith("temp-");
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: goal.id, disabled: { draggable: isTemp, droppable: isTemp } });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        opacity: isTemp ? 0.6 : isDragging ? 0.7 : 1,
+        transform: CSS.Transform.toString(transform),
+        transition,
+        ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}),
+      }}
+    >
+      <span className="todo-drag-handle" {...attributes} {...listeners} aria-label={`Move ${goal.text}`}>⠿</span>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
+    </div>
+  );
+}
 
 export function WeeklyGoalsCard({
   goals: serverGoals,
@@ -11,7 +38,12 @@ export function WeeklyGoalsCard({
   goals: WeeklyGoal[];
   weekStr: string;
 }) {
-  const [goals, setGoals] = useState(serverGoals);
+  const [unsorted, setGoals] = useState(serverGoals);
+  const goals = [...unsorted].sort((a, b) => a.position - b.position);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
   // Sync when server re-renders deliver fresh data
   useEffect(() => { setGoals(serverGoals); }, [serverGoals]);
 
@@ -26,9 +58,10 @@ export function WeeklyGoalsCard({
     if (!text) return;
     const target = parseInt(targetDraft) || 0;
     const temp: WeeklyGoal = {
-      id: "temp-" + Date.now(),
+      id: "temp-" + crypto.randomUUID(),
       user_id: "", text, week: weekStr,
       done: false, target, current: 0, created_at: "",
+      position: Math.max(0, ...goals.map((g) => g.position)) + 1,
     };
     setDraft("");
     setTargetDraft("");
@@ -46,6 +79,24 @@ export function WeeklyGoalsCard({
     startTransition(async () => { await deleteWeeklyGoal(id); });
   }
 
+  function handleDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const from = goals.findIndex((g) => g.id === active.id);
+    const to = goals.findIndex((g) => g.id === over.id);
+    if (from === -1 || to === -1) return;
+    const moved = arrayMove(goals, from, to);
+    const prevPos = moved[to - 1]?.position;
+    const nextPos = moved[to + 1]?.position;
+    const position =
+      prevPos !== undefined && nextPos !== undefined ? (prevPos + nextPos) / 2
+      : prevPos !== undefined ? prevPos + 1
+      : nextPos !== undefined ? nextPos - 1
+      : 0;
+    const id = String(active.id);
+    setGoals((prev) => prev.map((x) => x.id === id ? { ...x, position } : x));
+    startTransition(async () => { await reorderWeeklyGoal(id, position); });
+  }
+
   function handleProgress(g: WeeklyGoal, delta: number) {
     const next = Math.max(0, g.current + delta);
     setGoals((prev) => prev.map((x) => x.id === g.id ? { ...x, current: next, done: next >= x.target } : x));
@@ -61,8 +112,10 @@ export function WeeklyGoalsCard({
         <span>this week · {weekLabel}{goals.length > 0 ? ` · ${done}/${goals.length}` : ""}</span>
       </div>
 
+      <DndContext id="weekly-goals-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+      <SortableContext items={goals.map((g) => g.id)} strategy={verticalListSortingStrategy}>
       {goals.map((g) => (
-        <div key={g.id} style={{ opacity: g.id.startsWith("temp-") ? 0.6 : 1 }}>
+        <SortableGoal key={g.id} goal={g}>
           {g.target > 0 ? (
             /* ── Progress goal ── */
             <div className={`mgoal${g.current >= g.target ? " done" : ""}`} style={{ display: "flex", alignItems: "center", cursor: "default" }}>
@@ -121,8 +174,10 @@ export function WeeklyGoalsCard({
               >✕</button>
             </div>
           )}
-        </div>
+        </SortableGoal>
       ))}
+      </SortableContext>
+      </DndContext>
 
       {/* Add row */}
       {showAdd ? (

@@ -95,6 +95,7 @@ export type WeeklyGoal = {
   done: boolean;
   target: number; // 0 = checkbox, >0 = progress goal
   current: number;
+  position: number;
   created_at: string;
 };
 
