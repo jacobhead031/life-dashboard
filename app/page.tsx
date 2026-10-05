@@ -6,7 +6,7 @@ import { SignOutButton } from "@/components/SignOutButton";
 import { BirthdayBanner } from "@/components/BirthdayBanner";
 import { SchoolBanner } from "@/components/SchoolBanner";
 import { SchoolWeekCard, type SchoolItemWithClass } from "@/components/cards/SchoolWeekCard";
-import { StartSomethingCard } from "@/components/cards/StartSomethingCard";
+import { ActiveProjectsCard } from "@/components/cards/ActiveProjectsCard";
 import { MonthlyGoalsCard } from "@/components/cards/MonthlyGoalsCard";
 import { BooksCard } from "@/components/cards/BooksCard";
 import { LearningCard } from "@/components/cards/LearningCard";
@@ -18,6 +18,7 @@ import { HabitsCard } from "@/components/cards/HabitsCard";
 import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
 import { HealthCard } from "@/components/cards/HealthCard";
 import { TabNav } from "@/components/TabNav";
+import { HomeGrid } from "@/components/HomeGrid";
 
 type SunTimes = {
   sunrise: string;
@@ -96,6 +97,7 @@ export default async function HomePage() {
     { data: healthDays },
     { data: healthWeights },
     { data: schoolItems },
+    { data: settings },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -148,10 +150,11 @@ export default async function HomePage() {
       .limit(1),
     supabase
       .from("school_item")
-      .select("*, school_class(name)")
+      .select("*, school_class(name, color)")
       .gte("due_on", weekStr)
       .lte("due_on", plus7Str)
       .order("due_on"),
+    supabase.from("user_settings").select("home_order").maybeSingle(),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -199,44 +202,24 @@ export default async function HomePage() {
         />
       )}
 
-      {/* ── Bento grid ─────────────────────────────────────── */}
-      <div className="grid-bento">
-        {/* Row 1 — habits (span 6) */}
-        <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={today} />
-
-        {/* Row 2 — weekly goals (span 6) */}
-        <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} />
-
-        {/* Row 3 — health strip (span 6) */}
-        <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} />
-
-        {/* School — this week's assignments and exams (span 6) */}
-        <SchoolWeekCard items={school} weekStr={weekStr} todayStr={today} />
-
-        {/* Row 2 — monthly goals (span 2) + start something (span 4) */}
-        <MonthlyGoalsCard
-          goals={goals ?? []}
-          currentMonthStr={currentMonthStr}
-        />
-        <StartSomethingCard projects={liveProjects ?? []} />
-
-        {/* Row 3 — books (span 3) + learning (span 3) */}
-        <BooksCard books={books ?? []} finishedThisYear={finishedThisYear} />
-        <LearningCard tracks={tracks ?? []} />
-
-        {/* Row 4 — targets (span 3) + sunrise/sunset (span 3) */}
-        <TargetsCard targets={targets ?? []} currentYear={currentYear} />
-        <SunriseSunsetCard times={sunTimes} ss={ss ?? null} currentMonthStr={currentMonthStr} />
-
-        {/* Row 5 — reflection (span 6) */}
-        <ReflectionCard
-          reflections={reflections ?? []}
-          notes={reflectionNotes ?? []}
-        />
-
-        {/* Row 6 — birthdays (span 6) */}
-        <BirthdaysCard birthdays={birthdays ?? []} />
-      </div>
+      {/* ── Bento grid: default order below; the saved order (arrange mode) overrides it ── */}
+      <HomeGrid
+        order={settings?.home_order ?? []}
+        slots={[
+          { id: "habits", span: 6, href: "/habits", node: <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={today} /> },
+          { id: "weekly-goals", span: 6, node: <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} /> },
+          { id: "health", span: 6, href: "/health", node: <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} /> },
+          { id: "school", span: 6, href: "/school", node: <SchoolWeekCard items={school} weekStr={weekStr} todayStr={today} /> },
+          { id: "monthly-goals", span: 2, href: "/goals", node: <MonthlyGoalsCard goals={goals ?? []} currentMonthStr={currentMonthStr} /> },
+          { id: "projects", span: 4, href: "/notes", node: <ActiveProjectsCard projects={liveProjects ?? []} /> },
+          { id: "books", span: 3, href: "/books", node: <BooksCard books={books ?? []} finishedThisYear={finishedThisYear} /> },
+          { id: "learning", span: 3, href: "/learning", node: <LearningCard tracks={tracks ?? []} /> },
+          { id: "targets", span: 3, href: "/targets", node: <TargetsCard targets={targets ?? []} currentYear={currentYear} /> },
+          { id: "sun", span: 3, node: <SunriseSunsetCard times={sunTimes} ss={ss ?? null} currentMonthStr={currentMonthStr} /> },
+          { id: "reflection", span: 6, href: "/reflection", node: <ReflectionCard reflections={reflections ?? []} notes={reflectionNotes ?? []} /> },
+          { id: "birthdays", span: 6, href: "/birthdays", node: <BirthdaysCard birthdays={birthdays ?? []} /> },
+        ]}
+      />
     </div>
   );
 }

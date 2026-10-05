@@ -42,8 +42,15 @@ current_label text, accent text ('amber' | 'sky'), url text, notes text, updated
 ### `school_class`
 ```sql
 id uuid, user_id uuid, name text, days int[] (ISO weekday 1=Mon..7=Sun),
-start_time time (nullable), created_at timestamptz
+start_time time (nullable), color text (#RRGGBB, Google Calendar palette), created_at timestamptz
 ```
+- `color` tints every chip of that class (`--chip` on `.cal-chip`) on `/school` and the home week card.
+
+### `user_settings`
+```sql
+user_id uuid (pk), home_order text[] (default '{}')
+```
+- `home_order` is the home dashboard card order (ids from the `slots` list in `app/page.tsx`). Empty = default order; ids it doesn't mention keep their default place after it (`applyOrder` in `components/HomeGrid.tsx`). A new home card only needs a new slot entry.
 
 ### `school_item`
 ```sql

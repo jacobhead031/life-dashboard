@@ -1,17 +1,12 @@
 "use client";
 
 import { useState, useTransition, useOptimistic } from "react";
-import { addHabit, deleteHabit, toggleHabitLog } from "@/app/actions";
+import { addHabit, deleteHabit, setHabitColor, toggleHabitLog } from "@/app/actions";
 import type { Habit, HabitLog } from "@/lib/types";
+import { HABIT_COLORS as COLOR } from "@/lib/utils";
 
-const COLOR: Record<string, string> = {
-  amber: "var(--amber)",
-  sky:   "var(--sky)",
-  green: "var(--green)",
-  coral: "var(--coral)",
-};
 
-const SWATCHES = ["sky", "amber", "green", "coral"];
+const SWATCHES = Object.keys(COLOR);
 const DAY_LABELS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
 
@@ -110,6 +105,14 @@ export function HabitsContent({
     startTransition(async () => { await addHabit(name, color); });
   }
 
+  // Which habit's colour picker is open.
+  const [recoloring, setRecoloring] = useState<string | null>(null);
+
+  function handleRecolor(habit: Habit, color: string) {
+    setRecoloring(null);
+    if (color !== habit.color) startTransition(async () => { await setHabitColor(habit.id, color); });
+  }
+
   function handleDelete(habit: Habit) {
     if (!confirm(`Delete "${habit.name}" and all its history?`)) return;
     startTransition(async () => { await deleteHabit(habit.id); });
@@ -188,7 +191,14 @@ export function HabitsContent({
           return (
             <div key={habit.id} className="card-full" style={{ marginBottom: 18 }}>
               <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 0 10px" }}>
-                <span style={{ width: 12, height: 12, borderRadius: "50%", background: color, display: "inline-block", flexShrink: 0 }} />
+                <button
+                  className="color-swatch"
+                  style={{ background: color, width: 16, height: 16 }}
+                  onClick={() => setRecoloring(recoloring === habit.id ? null : habit.id)}
+                  aria-label={`Change colour of ${habit.name}`}
+                  aria-expanded={recoloring === habit.id}
+                  title="Change colour"
+                />
                 <span style={{ fontFamily: "var(--font-space-grotesk)", fontSize: "16px", fontWeight: 600, flex: 1 }}>
                   {habit.name}
                 </span>
@@ -202,6 +212,19 @@ export function HabitsContent({
                 </button>
                 <button className="d-btn danger" onClick={() => handleDelete(habit)}>delete</button>
               </div>
+              {recoloring === habit.id && (
+                <div className="habit-color-pick" style={{ paddingBottom: 14 }}>
+                  {SWATCHES.map((c) => (
+                    <button
+                      key={c}
+                      className={`color-swatch${habit.color === c ? " selected" : ""}`}
+                      style={{ background: COLOR[c] }}
+                      onClick={() => handleRecolor(habit, c)}
+                      aria-label={c}
+                    />
+                  ))}
+                </div>
+              )}
               <div style={{ padding: "0 0 16px" }}>
                 <div style={{ fontFamily: "var(--font-space-mono)", fontSize: "10px", letterSpacing: 1, textTransform: "uppercase", color: "var(--muted-2)", marginBottom: 10 }}>
                   {MONTH_NAMES[currentMonth - 1]} {currentYear}

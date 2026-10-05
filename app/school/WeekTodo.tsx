@@ -69,6 +69,8 @@ function SortableRow(props: RowProps) {
 
 export function WeekTodo({
   items,
+  label,
+  emptyText,
   accent,
   clsName,
   todayStr,
@@ -76,6 +78,8 @@ export function WeekTodo({
   onReorder,
 }: {
   items: SchoolItem[]; // already filtered to the window and sorted by position
+  label: string;
+  emptyText: string;
   accent: (classId: string) => string;
   clsName: (classId: string) => string;
   todayStr: string;
@@ -110,10 +114,10 @@ export function WeekTodo({
   return (
     <section className="card span-6">
       <div className="card-label">
-        <span>to do · next 7 days</span>
+        <span>{label}</span>
         {items.length > 0 && <span>{done.length}/{items.length}</span>}
       </div>
-      {items.length === 0 && <div className="empty-state"><p>Nothing due in the next 7 days.</p></div>}
+      {items.length === 0 && <div className="empty-state"><p>{emptyText}</p></div>}
       <DndContext id="school-todo-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <SortableContext items={open.map((i) => i.id)} strategy={verticalListSortingStrategy}>
           {open.map((i) => <SortableRow key={i.id} {...row(i)} />)}

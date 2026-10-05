@@ -206,6 +206,7 @@ export type SchoolClass = {
   name: string;
   days: number[]; // ISO weekday: 1=Mon .. 7=Sun
   start_time: string | null; // HH:MM:SS from Postgres
+  color: string | null; // #RRGGBB
   created_at: string;
 };
 

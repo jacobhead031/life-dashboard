@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
-import { todayStr } from "@/lib/utils";
+import { HABIT_COLORS, todayStr } from "@/lib/utils";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -53,7 +53,7 @@ function pos(v: number, label: string) {
 }
 
 function fmt(v: string, re: RegExp, label: string) {
-  if (typeof v !== "string" || !re.test(v)) throw new Error(`${label} is not a valid date`);
+  if (typeof v !== "string" || !re.test(v)) throw new Error(`${label} is not valid`);
   return v;
 }
 
@@ -61,6 +61,17 @@ function fmt(v: string, re: RegExp, label: string) {
 function birthday(month = 1, day = 1) {
   if (!Number.isInteger(month) || month < 1 || month > 12) throw new Error("Month must be 1-12");
   if (!Number.isInteger(day) || day < 1 || day > new Date(2024, month, 0).getDate()) throw new Error("Day isn't valid for that month");
+}
+
+// ── Home layout ───────────────────────────────────────────────
+
+export async function saveHomeOrder(order: string[]) {
+  const { supabase, user } = await authed();
+  if (!Array.isArray(order) || order.length > 50 || !order.every((id) => typeof id === "string" && /^[a-z-]{1,30}$/.test(id))) {
+    throw new Error("Invalid card order");
+  }
+  await ok(supabase.from("user_settings").upsert({ user_id: user.id, home_order: order }));
+  revalidatePath("/");
 }
 
 // ── Monthly goals ─────────────────────────────────────────────
@@ -522,9 +533,21 @@ export async function deleteWeeklyGoal(id: string) {
 
 // ── Habits ────────────────────────────────────────────────────
 
+function habitColor(v: string) {
+  if (typeof v !== "string" || !Object.hasOwn(HABIT_COLORS, v)) throw new Error("Unknown colour");
+  return v;
+}
+
 export async function addHabit(name: string, color: string) {
   const { supabase, user } = await authed();
-  await ok(supabase.from("habit").insert({ user_id: user.id, name: str(name, "Name"), color: str(color, "Color", 20) }));
+  await ok(supabase.from("habit").insert({ user_id: user.id, name: str(name, "Name"), color: habitColor(color) }));
+  revalidatePath("/habits");
+  revalidatePath("/");
+}
+
+export async function setHabitColor(id: string, color: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("habit").update({ color: habitColor(color) }).eq("id", id));
   revalidatePath("/habits");
   revalidatePath("/");
 }
@@ -780,6 +803,7 @@ export async function saveSchoolClass(data: {
   name: string;
   days: number[];
   start_time: string | null;
+  color: string;
 }) {
   const { supabase, user } = await authed();
   if (!Array.isArray(data.days) || data.days.length > 7 || !data.days.every((d) => Number.isInteger(d) && d >= 1 && d <= 7)) {
@@ -791,6 +815,7 @@ export async function saveSchoolClass(data: {
     name: str(data.name, "Name"),
     days: data.days,
     start_time: cap(data.start_time, "Start time", 8),
+    color: fmt(data.color, /^#[0-9a-fA-F]{6}$/, "Colour"),
   }));
   revalidatePath("/school");
   revalidatePath("/");

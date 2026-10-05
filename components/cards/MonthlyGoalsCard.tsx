@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
-import { toggleGoal } from "@/app/actions";
+import { deleteGoal, toggleGoal } from "@/app/actions";
 import type { MonthlyGoal } from "@/lib/types";
 
 const MONS = ["jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec"];
@@ -23,9 +23,17 @@ export function MonthlyGoalsCard({
     initialGoals,
     (
       state: MonthlyGoal[],
-      { id, done }: { id: string; done: boolean }
-    ) => state.map((g) => (g.id === id ? { ...g, done } : g))
+      { id, done }: { id: string; done: boolean | "deleted" }
+    ) => done === "deleted" ? state.filter((g) => g.id !== id) : state.map((g) => (g.id === id ? { ...g, done } : g))
   );
+
+  function handleDelete(goal: MonthlyGoal) {
+    if (!confirm(`Delete "${goal.text}"?`)) return;
+    startTransition(async () => {
+      applyOptimistic({ id: goal.id, done: "deleted" });
+      await deleteGoal(goal.id);
+    });
+  }
 
   function handleToggle(id: string, currentDone: boolean) {
     startTransition(async () => {
@@ -66,7 +74,8 @@ export function MonthlyGoalsCard({
               aria-checked={goal.done}
               tabIndex={0}
               onKeyDown={(e) => {
-                if ((e.key === " " || e.key === "Enter") && !isPending) {
+                // Own keys only, so Enter on the nested ✕ still deletes.
+                if (e.target === e.currentTarget && (e.key === " " || e.key === "Enter") && !isPending) {
                   e.preventDefault();
                   handleToggle(goal.id, goal.done);
                 }
@@ -74,8 +83,14 @@ export function MonthlyGoalsCard({
               style={{ cursor: isPending ? "wait" : "pointer" }}
             >
               <span className="box">{goal.done ? "✓" : ""}</span>
-              <span className="m-text">{goal.text}</span>
+              <span className="m-text" style={{ flex: 1 }}>{goal.text}</span>
               {fromLabel && <span className="carry">from {fromLabel}</span>}
+              <button
+                className="d-btn danger"
+                style={{ opacity: 0.4, fontSize: "11px", padding: "2px 6px" }}
+                onClick={(e) => { e.stopPropagation(); handleDelete(goal); }}
+                aria-label={`Delete ${goal.text}`}
+              >✕</button>
             </div>
           );
         })

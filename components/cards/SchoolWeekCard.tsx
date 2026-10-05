@@ -3,7 +3,7 @@ import type { SchoolItem } from "@/lib/types";
 import { addDays } from "@/lib/utils";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-export type SchoolItemWithClass = SchoolItem & { school_class: { name: string } | null };
+export type SchoolItemWithClass = SchoolItem & { school_class: { name: string; color: string | null } | null };
 
 export function SchoolWeekCard({
   items,
@@ -38,7 +38,11 @@ export function SchoolWeekCard({
                   {d} {Number(key.slice(8))}
                 </div>
                 {thisWeek.filter((it) => it.due_on === key).map((it) => (
-                  <div key={it.id} className={`cal-chip${it.kind === "exam" ? " exam" : ""}${it.done ? " done" : ""}`}>
+                  <div
+                    key={it.id}
+                    className={`cal-chip${it.kind === "exam" ? " exam" : ""}${it.done ? " done" : ""}`}
+                    style={it.school_class?.color ? ({ "--chip": it.school_class.color } as React.CSSProperties) : undefined}
+                  >
                     <span>{it.title}</span>
                     <span className="cal-meta">{it.school_class?.name}</span>
                   </div>

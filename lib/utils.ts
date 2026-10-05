@@ -36,6 +36,20 @@ export function daysUntilAnnual(month: number, day: number, today: string): numb
   return until(year) >= 0 ? until(year) : until(year + 1);
 }
 
+// ── Habit colours ────────────────────────────────────────────
+// habit.color stores the key. The first four are the theme accents; the rest are extras.
+export const HABIT_COLORS: Record<string, string> = {
+  sky:    "var(--sky)",
+  amber:  "var(--amber)",
+  green:  "var(--green)",
+  coral:  "var(--coral)",
+  violet: "#A78BDA",
+  rose:   "#D9739B",
+  teal:   "#4FB3A5",
+  gold:   "#D9B84A",
+  slate:  "#8A93A6",
+};
+
 // ── Birthdays ────────────────────────────────────────────────
 const DAY_NAMES = [
   "sunday","monday","tuesday","wednesday","thursday","friday","saturday",

@@ -15,7 +15,12 @@ import type { SchoolClass, SchoolItem } from "@/lib/types";
 import { addDays, todayStr } from "@/lib/utils";
 import { WeekTodo } from "./WeekTodo";
 
-const ACCENTS = ["var(--amber)", "var(--sky)", "var(--green)", "var(--coral)"];
+// Google Calendar's event colours, so a class can match its calendar.
+const GCAL = [
+  ["Tomato", "#D50000"], ["Flamingo", "#E67C73"], ["Tangerine", "#F4511E"], ["Banana", "#F6BF26"],
+  ["Sage", "#33B679"], ["Basil", "#0B8043"], ["Peacock", "#039BE5"], ["Blueberry", "#3F51B5"],
+  ["Lavender", "#7986CB"], ["Grape", "#8E24AA"], ["Graphite", "#616161"],
+] as const;
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
@@ -68,8 +73,17 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
   const [className, setClassName] = useState("");
   const [classDays, setClassDays] = useState<number[]>([]);
   const [classTime, setClassTime] = useState("");
+  // First palette colour no class is using yet.
+  const freeColor = (alsoTaken?: string) =>
+    GCAL.find(([, hex]) => hex !== alsoTaken?.toUpperCase() && !classes.some((c) => c.color?.toUpperCase() === hex))?.[1] ?? GCAL[0][1];
+  const [classColor, setClassColor] = useState<string>(() => freeColor());
 
-  const accent = (id: string) => ACCENTS[Math.max(0, classes.findIndex((c) => c.id === id)) % ACCENTS.length];
+  // One class at a time: narrows the calendar and turns the to-do into that class's full list.
+  const [filterClass, setFilterClass] = useState<string | null>(null);
+  const activeFilter = classes.some((c) => c.id === filterClass) ? filterClass : null;
+  const shown = activeFilter ? optItems.filter((it) => it.class_id === activeFilter) : optItems;
+
+  const accent = (id: string) => classes.find((c) => c.id === id)?.color ?? "var(--muted-2)";
   const clsName = (id: string) => classes.find((c) => c.id === id)?.name ?? "";
 
   // Calendar grid, Monday-first
@@ -79,12 +93,12 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
   const daysInMonth = new Date(y, m + 1, 0).getDate();
   const cells = Math.ceil((offset + daysInMonth) / 7) * 7;
   const byDate = new Map<string, SchoolItem[]>();
-  for (const it of optItems) byDate.set(it.due_on, [...(byDate.get(it.due_on) ?? []), it]);
+  for (const it of shown) byDate.set(it.due_on, [...(byDate.get(it.due_on) ?? []), it]);
 
   // Weekly to-do: due within 7 days, plus anything overdue and still unchecked.
   const plus7Str = addDays(today, 7);
-  const weekItems = optItems
-    .filter((it) => it.due_on <= plus7Str && (it.due_on >= today || !it.done))
+  const weekItems = shown
+    .filter((it) => activeFilter || (it.due_on <= plus7Str && (it.due_on >= today || !it.done)))
     .sort((a, b) => a.position - b.position || a.due_on.localeCompare(b.due_on));
 
   function toggle(id: string, done: boolean) {
@@ -144,6 +158,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
     setClassName(c?.name ?? "");
     setClassDays(c?.days ?? []);
     setClassTime(c?.start_time?.slice(0, 5) ?? "");
+    setClassColor(c?.color ?? freeColor());
   }
 
   function handleSaveClass() {
@@ -153,8 +168,10 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
       name: className.trim(),
       days: [...classDays].sort(),
       start_time: classTime || null,
+      color: classColor,
     };
     openClassForm();
+    setClassColor(freeColor(data.color)); // the class being saved isn't in `classes` yet
     startTransition(() => saveSchoolClass(data));
   }
 
@@ -218,8 +235,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           <div className="add-panel-title">classes</div>
           {classes.map((c) => (
             <div key={c.id} className="school-class-row">
-              <span className="cal-dot" style={{ background: accent(c.id) }} />
-              <span style={{ fontWeight: 500 }}>{c.name}</span>
+              <span className="cal-chip" style={{ "--chip": accent(c.id), marginTop: 0, fontWeight: 500 } as React.CSSProperties}>{c.name}</span>
               <span style={{ color: "var(--muted-2)", fontSize: 12.5 }}>
                 {c.days.map((d) => DOW[d - 1]).join(" ")}{c.start_time && ` · ${c.start_time.slice(0, 5)}`}
               </span>
@@ -249,6 +265,24 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
             <div className="d-field">
               <label>Starts</label>
               <input type="time" value={classTime} onChange={(e) => setClassTime(e.target.value)} />
+            </div>
+          </div>
+          <div className="d-field">
+            <label>Colour · matches Google Calendar</label>
+            <div className="swatches" role="radiogroup" aria-label="Class colour">
+              {GCAL.map(([label, hex]) => (
+                <button
+                  key={hex}
+                  type="button"
+                  role="radio"
+                  aria-checked={classColor.toUpperCase() === hex}
+                  aria-label={label}
+                  title={label}
+                  className={`swatch${classColor.toUpperCase() === hex ? " on" : ""}`}
+                  style={{ background: hex }}
+                  onClick={() => setClassColor(hex)}
+                />
+              ))}
             </div>
           </div>
           <div className="d-form-actions">
@@ -281,10 +315,36 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           </div>
         </section>
 
-        <WeekTodo items={weekItems} accent={accent} clsName={clsName} todayStr={today} onToggle={toggle} onReorder={reorder} />
+        {classes.length > 0 && (
+          <div className="class-filter" role="group" aria-label="Show one class">
+            <button className={`class-pill${activeFilter ? "" : " on"}`} aria-pressed={!activeFilter} onClick={() => setFilterClass(null)}>all classes</button>
+            {classes.map((c) => (
+              <button
+                key={c.id}
+                className={`class-pill${activeFilter === c.id ? " on" : ""}`}
+                style={{ "--chip": accent(c.id) } as React.CSSProperties}
+                aria-pressed={activeFilter === c.id}
+                onClick={() => setFilterClass(activeFilter === c.id ? null : c.id)}
+              >
+                {c.name}
+              </button>
+            ))}
+          </div>
+        )}
+
+        <WeekTodo
+          items={weekItems}
+          label={activeFilter ? `${clsName(activeFilter)} · everything` : "to do · next 7 days"}
+          emptyText={activeFilter ? "Nothing added for this class yet." : "Nothing due in the next 7 days."}
+          accent={accent}
+          clsName={clsName}
+          todayStr={today}
+          onToggle={toggle}
+          onReorder={reorder}
+        />
 
         <section className="card span-6">
-          <div className="card-label"><span>due · {MONTH_NAMES[m]}</span><span>drag to reschedule</span></div>
+          <div className="card-label"><span>due · {MONTH_NAMES[m]}{activeFilter ? ` · ${clsName(activeFilter)}` : ""}</span><span>drag to reschedule</span></div>
           <DndContext
             id="school-cal-dnd"
             sensors={calSensors}
@@ -335,7 +395,7 @@ export function SchoolContent({ classes, items }: { classes: SchoolClass[]; item
           </div>
           <DragOverlay dropAnimation={null}>
             {dragging && (
-              <div className={`cal-chip${dragging.kind === "exam" ? " exam" : ""}`} style={{ "--chip": accent(dragging.class_id), background: "var(--card-hi)", cursor: "grabbing" } as React.CSSProperties}>
+              <div className={`cal-chip${dragging.kind === "exam" ? " exam" : ""}`} style={{ "--chip": accent(dragging.class_id), background: "color-mix(in srgb, var(--chip) 30%, var(--card-hi))", cursor: "grabbing" } as React.CSSProperties}>
                 <span>{dragging.title}</span>
                 <span className="cal-meta">{clsName(dragging.class_id)}</span>
               </div>

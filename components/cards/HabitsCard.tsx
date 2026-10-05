@@ -4,13 +4,7 @@ import Link from "next/link";
 import { useOptimistic, useTransition } from "react";
 import { toggleHabitLog } from "@/app/actions";
 import type { Habit, HabitLog } from "@/lib/types";
-
-const COLOR: Record<string, string> = {
-  amber: "var(--amber)",
-  sky:   "var(--sky)",
-  green: "var(--green)",
-  coral: "var(--coral)",
-};
+import { HABIT_COLORS as COLOR } from "@/lib/utils";
 
 function getStreak(logs: HabitLog[], habitId: string, today: string): number {
   const done = new Set(logs.filter((l) => l.habit_id === habitId).map((l) => l.date));
