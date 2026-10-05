@@ -3,6 +3,10 @@
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { HABIT_COLORS, todayStr } from "@/lib/utils";
+import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
+import { findCover } from "@/lib/unsplash";
+import lifeSeed from "@/lib/life-goals.json";
+import type { LifeGoal, LifeStep } from "@/lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -887,5 +891,200 @@ export async function deleteSchoolItem(id: string) {
   const { supabase } = await authed();
   await ok(supabase.from("school_item").delete().eq("id", id));
   revalidatePath("/school");
+  revalidatePath("/");
+}
+
+// ── Life goals ────────────────────────────────────────────────
+
+function revalidateLife() {
+  revalidatePath("/life");
+  revalidatePath("/");
+}
+
+type SeedGoal = {
+  id: string; title: string; emoji: string; category: string; type: string; active: boolean; status: string;
+  why?: string; firstMove?: string; nextMove?: string; targetDate?: string;
+  steps?: LifeStep[]; count?: { current: number; seasonTarget?: number; lifetimeTarget?: number };
+  requires?: string[]; imageQuery?: string;
+};
+
+// First-run import of lib/life-goals.json. Existing slugs are left alone, so re-running never overwrites edits.
+export async function seedLifeGoals() {
+  const { supabase, user } = await authed();
+  const rows = (lifeSeed.goals as SeedGoal[]).map((g, i) => ({
+    user_id: user.id,
+    slug: g.id,
+    title: g.title,
+    emoji: g.emoji,
+    category: g.category,
+    type: g.type,
+    active: g.active,
+    status: g.status,
+    why: g.why ?? null,
+    first_move: g.firstMove ?? null,
+    next_move: g.nextMove ?? null,
+    target_date: g.targetDate ?? null,
+    steps: g.steps ?? [],
+    count_current: g.count?.current ?? 0,
+    season_target: g.count?.seasonTarget ?? null,
+    lifetime_target: g.count?.lifetimeTarget ?? null,
+    requires: g.requires ?? [],
+    image_query: g.imageQuery ?? null,
+    position: i,
+  }));
+  await ok(supabase.from("life_goal").upsert(rows, { onConflict: "user_id,slug", ignoreDuplicates: true }));
+  revalidateLife();
+}
+
+export async function addLifeGoal(title: string, category: string) {
+  const { supabase, user } = await authed();
+  if (!(LIFE_CATEGORIES as readonly string[]).includes(category)) throw new Error("Category is not valid");
+  const last = await ok(supabase.from("life_goal").select("position").order("position", { ascending: false }).limit(1).maybeSingle());
+  await ok(supabase.from("life_goal").insert({
+    user_id: user.id,
+    slug: crypto.randomUUID(),
+    title: str(title, "Title", 200),
+    emoji: "✨",
+    category,
+    position: (last?.position ?? 0) + 1,
+  }));
+  revalidateLife();
+}
+
+type LifeGoalEdit = Partial<Pick<LifeGoal,
+  "title" | "emoji" | "category" | "active" | "why" | "first_move" | "next_move" | "target_date" | "notes" | "cover_url" | "season_target" | "lifetime_target"
+>>;
+
+// Empty text clears the field. Absent keys are left alone (undefined is dropped from the update).
+const blank = (v: string | null | undefined, label: string, max = 500) =>
+  v === undefined ? undefined : cap(v, label, max)?.trim() || null;
+
+const target = (v: number | null | undefined, label: string) =>
+  v == null ? v : Math.round(num(v, label, 0));
+
+export async function saveLifeGoal(id: string, f: LifeGoalEdit) {
+  const { supabase } = await authed();
+  if (f.category !== undefined && !(LIFE_CATEGORIES as readonly string[]).includes(f.category)) throw new Error("Category is not valid");
+  if (f.active !== undefined && typeof f.active !== "boolean") throw new Error("Active is not valid");
+  await ok(supabase.from("life_goal").update({
+    title: f.title === undefined ? undefined : str(f.title, "Title", 200),
+    emoji: f.emoji === undefined ? undefined : (cap(f.emoji, "Icon", 16) ?? "").trim(),
+    category: f.category,
+    active: f.active,
+    why: blank(f.why, "Why", 2000),
+    first_move: blank(f.first_move, "First move"),
+    next_move: blank(f.next_move, "Next move"),
+    target_date: f.target_date ? fmt(f.target_date, DATE, "Target date") : f.target_date === undefined ? undefined : null,
+    notes: blank(f.notes, "Notes", 5000),
+    // A hand-pasted cover drops the old photographer credit.
+    ...(f.cover_url === undefined ? {} : { cover_url: link(f.cover_url), cover_credit: null }),
+    season_target: target(f.season_target, "Season target"),
+    lifetime_target: target(f.lifetime_target, "Lifetime target"),
+  }).eq("id", id));
+  revalidateLife();
+}
+
+// ponytail: whole-array write, last save wins (same trade as learning_track.steps).
+export async function saveLifeGoalSteps(id: string, list: LifeStep[]) {
+  const { supabase } = await authed();
+  if (!Array.isArray(list) || list.length > 50) throw new Error("A goal can have at most 50 steps");
+  const steps = list.map((s) => ({
+    label: str(s.label, "Step", 200),
+    done: s.done === true,
+    ...(s.done === true && s.doneDate ? { doneDate: fmt(s.doneDate, DATE, "Step date") } : {}),
+  }));
+  await ok(supabase.from("life_goal").update({ steps }).eq("id", id));
+  revalidateLife();
+}
+
+export async function setLifeCount(id: string, current: number) {
+  const { supabase } = await authed();
+  await ok(supabase.from("life_goal").update({ count_current: Math.round(num(current, "Count", 0)) }).eq("id", id));
+  revalidateLife();
+}
+
+// "Today's move" done: log it and clear it, so the card asks for the next one.
+export async function completeMove(goalId: string) {
+  const { supabase, user } = await authed();
+  const goal = await ok(supabase.from("life_goal").select("next_move").eq("id", goalId).maybeSingle());
+  if (!goal?.next_move) throw new Error("That goal has no next move to finish");
+  await ok(supabase.from("life_move_log").insert({ user_id: user.id, goal_id: goalId, move: goal.next_move, done_on: todayStr() }));
+  await ok(supabase.from("life_goal").update({ next_move: null }).eq("id", goalId));
+  revalidateLife();
+}
+
+export async function setLifeGoalDone(id: string, done: boolean) {
+  const { supabase } = await authed();
+  if (done) {
+    await ok(supabase.from("life_goal").update({ status: "done", completed_on: todayStr() }).eq("id", id));
+  } else {
+    const goal = await ok(supabase.from("life_goal").select("active").eq("id", id).maybeSingle());
+    await ok(supabase.from("life_goal").update({ status: goal?.active ? "active" : "someday", completed_on: null }).eq("id", id));
+  }
+  revalidateLife();
+}
+
+// The browser uploads to the goal-photos bucket, then records the path here. null removes the photo.
+export async function setLifeGoalPhoto(id: string, path: string | null) {
+  const { supabase, user } = await authed();
+  // The stored path is later handed to storage.remove — keep it inside the owner's folder.
+  if (path !== null && (typeof path !== "string" || !path.startsWith(`${user.id}/${id}/`) || path.split("/").includes("..") || path.length > 1000)) {
+    throw new Error("Invalid photo path");
+  }
+  const goal = await ok(supabase.from("life_goal").select("photo_path").eq("id", id).maybeSingle());
+  if (!goal) throw new Error("Goal not found");
+  await ok(supabase.from("life_goal").update({ photo_path: path }).eq("id", id));
+  // Row first: if this remove fails the old object is only an orphan, never a broken cover.
+  if (goal.photo_path && goal.photo_path !== path) await ok(supabase.storage.from("goal-photos").remove([goal.photo_path]));
+  revalidateLife();
+}
+
+// Looks up a stock cover for every goal that has neither a cover nor my own photo.
+// Stops at the first Unsplash error (rate limit is 50/hour on a demo key); covers saved before it stay.
+export async function fillCovers() {
+  const { supabase } = await authed();
+  const goals = await ok(supabase.from("life_goal").select("id, image_query").is("cover_url", null).is("photo_path", null).not("image_query", "is", null).order("position"));
+  for (const g of goals ?? []) {
+    const cover = await findCover(g.image_query);
+    if (cover) await ok(supabase.from("life_goal").update({ cover_url: cover.url, cover_credit: cover.credit }).eq("id", g.id));
+  }
+  revalidateLife();
+}
+
+export async function addCounterEntry(counter: string, name: string, happenedOn: string | null) {
+  const { supabase, user } = await authed();
+  if (!LIFE_COUNTERS.some((c) => c.key === counter)) throw new Error("Counter is not valid");
+  await ok(supabase.from("life_counter_entry").insert({
+    user_id: user.id,
+    counter,
+    name: str(name, "Name", 200),
+    happened_on: happenedOn ? fmt(happenedOn, DATE, "Date") : null,
+  }));
+  revalidatePath("/life");
+}
+
+export async function deleteCounterEntry(id: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("life_counter_entry").delete().eq("id", id));
+  revalidatePath("/life");
+}
+
+// The first log also starts the streak clock if no start date is set yet.
+export async function logJournal(date: string, on: boolean) {
+  const { supabase, user } = await authed();
+  fmt(date, DATE, "Date");
+  if (on) {
+    await ok(supabase.from("journal_log").upsert({ user_id: user.id, date }, { onConflict: "user_id,date", ignoreDuplicates: true }));
+    const settings = await ok(supabase.from("user_settings").select("journal_start").maybeSingle());
+    if (!settings?.journal_start) await ok(supabase.from("user_settings").upsert({ user_id: user.id, journal_start: date }));
+  } else {
+    await ok(supabase.from("journal_log").delete().eq("date", date));
+  }
+  revalidatePath("/");
+}
+
+export async function setJournalStart(date: string | null) {
+  const { supabase, user } = await authed();
+  await ok(supabase.from("user_settings").upsert({ user_id: user.id, journal_start: date ? fmt(date, DATE, "Start date") : null }));
   revalidatePath("/");
 }

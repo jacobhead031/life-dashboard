@@ -17,6 +17,7 @@ import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 import { HabitsCard } from "@/components/cards/HabitsCard";
 import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
 import { HealthCard } from "@/components/cards/HealthCard";
+import { ThisYearCard } from "@/components/cards/ThisYearCard";
 import { TabNav } from "@/components/TabNav";
 import { HomeGrid } from "@/components/HomeGrid";
 
@@ -98,6 +99,9 @@ export default async function HomePage() {
     { data: healthWeights },
     { data: schoolItems },
     { data: settings },
+    { data: lifeGoals },
+    { data: doneMove },
+    { data: journal },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -154,7 +158,10 @@ export default async function HomePage() {
       .gte("due_on", weekStr)
       .lte("due_on", plus7Str)
       .order("due_on"),
-    supabase.from("user_settings").select("home_order").maybeSingle(),
+    supabase.from("user_settings").select("home_order, journal_start").maybeSingle(),
+    supabase.from("life_goal").select("*").eq("active", true).order("position"),
+    supabase.from("life_move_log").select("goal_id, move").eq("done_on", today).limit(1).maybeSingle(),
+    supabase.from("journal_log").select("date"),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -206,6 +213,7 @@ export default async function HomePage() {
       <HomeGrid
         order={settings?.home_order ?? []}
         slots={[
+          { id: "this-year", span: 6, href: "/life", node: <ThisYearCard goals={lifeGoals ?? []} doneMove={doneMove ?? null} journalDates={(journal ?? []).map((j) => j.date)} journalStart={settings?.journal_start ?? null} todayStr={today} /> },
           { id: "habits", span: 6, href: "/habits", node: <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={today} /> },
           { id: "weekly-goals", span: 6, node: <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} /> },
           { id: "health", span: 6, href: "/health", node: <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} /> },

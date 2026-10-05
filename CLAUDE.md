@@ -62,6 +62,26 @@ position double precision (default 0, lower = higher in the weekly to-do), creat
 - Home page banner + week card read `school_item` where `due_on` in [Monday of this week, today+7].
 - The 7:30 health-coach email (`~/health-coach/school_brief.py`) reads both tables via PostgREST with the service key.
 
+### `life_goal` (+ `life_counter_entry`, `life_move_log`, `journal_log`)
+```sql
+life_goal: id uuid, user_id uuid, slug text (unique per user), title text, emoji text,
+  category text (Adventure|Body|Build|Skills|People|Mind),
+  type text (experience|ladder|count|countdown|habit), active boolean, status text (someday|active|done),
+  why text, first_move text, next_move text, target_date date, steps jsonb ([{label, done, doneDate?}]),
+  count_current int, season_target int, lifetime_target int, requires text[] (slugs),
+  image_query text, cover_url text, cover_credit text, photo_path text, completed_on date,
+  notes text, position double precision, created_at timestamptz
+life_counter_entry: id, user_id, counter text (countries|continents|wonders|concerts), name text, happened_on date
+life_move_log: id, user_id, goal_id uuid (fk life_goal, cascade), move text, done_on date
+journal_log: user_id, date (pk on both);  user_settings.journal_start date
+```
+- The life list lives at **`/life`** (tab label "Goals"). `/goals` is still Monthly goals.
+- `active` (shows on the home "this year" card) and `status` are independent; the home card shows `active` goals whose status isn't `done`.
+- "Today's move" is the `next_move` of one active goal, rotated by date (`moveGoalForDay` in `lib/life.ts`). Done writes a `life_move_log` row and clears `next_move`.
+- Counter totals are row counts; targets and the season window are constants in `lib/life.ts`. `count_current` is one number shown against both targets, so rolling the season over does not reset it.
+- Cover precedence: `photo_path` (private `goal-photos` bucket, `<user_id>/<goal_id>/<ts>-<filename>`, signed per render) > `cover_url` > the category gradient in CSS. `fillCovers` fills `cover_url` from Unsplash when `UNSPLASH_ACCESS_KEY` is set.
+- Seed: `lib/life-goals.json` via `seedLifeGoals` (skips slugs that already exist).
+
 ## Key rules
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.

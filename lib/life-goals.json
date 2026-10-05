@@ -1,0 +1,111 @@
+{
+  "season": { "label": "2027 Season", "start": "2026-10-01", "end": "2027-12-31" },
+  "journal": { "startDate": null, "lifetimeTargetDays": 365 },
+  "counters": {
+    "countries": { "target": 50, "entries": [] },
+    "continents": { "target": 6, "note": "every continent except Antarctica", "entries": [] },
+    "wonders": { "target": 7, "entries": [] },
+    "concerts": { "target": 20, "entries": [] }
+  },
+  "goals": [
+    {
+      "id": "maine-703", "title": "Ironman 70.3 Maine", "emoji": "🏊", "category": "Body",
+      "type": "countdown", "active": true, "status": "active", "targetDate": "2027-07-25",
+      "nextMove": "Book first swim lesson",
+      "steps": [
+        { "label": "Learn to swim", "done": false },
+        { "label": "Swim 1.9 km continuous", "done": false },
+        { "label": "Race bike + aero bars sorted", "done": false },
+        { "label": "90 km ride", "done": false },
+        { "label": "Half marathon", "done": false },
+        { "label": "First brick workout", "done": false },
+        { "label": "Race day", "done": false }
+      ],
+      "imageQuery": "triathlon open water swim start"
+    },
+    {
+      "id": "ski-tricks", "title": "Ski tricks → backflip", "emoji": "⛷️", "category": "Body",
+      "type": "ladder", "active": true, "status": "active",
+      "nextMove": "Book a trampoline session",
+      "steps": [
+        { "label": "Trampoline backflip", "done": false },
+        { "label": "Terrain park lesson", "done": false },
+        { "label": "Clean straight airs", "done": false },
+        { "label": "180", "done": false },
+        { "label": "Airbag backflip", "done": false },
+        { "label": "Backflip on snow", "done": false }
+      ],
+      "imageQuery": "freestyle skier backflip mountain"
+    },
+    {
+      "id": "guitar", "title": "Play 12 songs on guitar", "emoji": "🎸", "category": "Skills",
+      "type": "count", "active": true, "status": "active",
+      "count": { "current": 0, "seasonTarget": 4, "lifetimeTarget": 12 },
+      "nextMove": "Learn Sparks (Coldplay)",
+      "imageQuery": "acoustic guitar warm light"
+    },
+    {
+      "id": "piano", "title": "Play 5 songs on piano", "emoji": "🎹", "category": "Skills",
+      "type": "count", "active": true, "status": "active",
+      "count": { "current": 0, "seasonTarget": 1, "lifetimeTarget": 5 },
+      "nextMove": "Pick song #1 for the keyboard at home",
+      "imageQuery": "piano keys moody light"
+    },
+    {
+      "id": "dishes", "title": "Master 10 dishes", "emoji": "🍳", "category": "Skills",
+      "type": "count", "active": true, "status": "active",
+      "count": { "current": 1, "seasonTarget": 2, "lifetimeTarget": 10 },
+      "nextMove": "Pick dish #2",
+      "imageQuery": "home cooking cast iron pan"
+    },
+    {
+      "id": "paying-users", "title": "100 paying users", "emoji": "📱", "category": "Build",
+      "type": "count", "active": true, "status": "active",
+      "count": { "current": 0, "seasonTarget": 10, "lifetimeTarget": 100 },
+      "nextMove": "Add the Known Quantity paywall",
+      "imageQuery": "startup desk night laptop"
+    },
+    {
+      "id": "books", "title": "Read 100 books", "emoji": "📖", "category": "Mind",
+      "type": "count", "active": true, "status": "active",
+      "count": { "current": 0, "seasonTarget": 8, "lifetimeTarget": 100 },
+      "nextMove": "Finish Meditations",
+      "imageQuery": "stack of old books reading lamp"
+    },
+
+    { "id": "skydive", "title": "Skydive", "emoji": "🪂", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Book a tandem for next summer", "imageQuery": "skydiving freefall above clouds" },
+    { "id": "python-hunt", "title": "Python hunting in the Everglades", "emoji": "🐍", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Check Florida Python Challenge dates", "imageQuery": "florida everglades airboat" },
+    { "id": "scuba", "title": "Scuba certification", "emoji": "🤿", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Find an open-water course once swimming is solid", "imageQuery": "scuba diver blue water" },
+    { "id": "sharks", "title": "Swim with sharks", "emoji": "🦈", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "requires": ["scuba"], "firstMove": "Get scuba certified first", "imageQuery": "diver swimming with sharks" },
+    { "id": "barrier-reef", "title": "Great Barrier Reef", "emoji": "🐠", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "requires": ["scuba"], "firstMove": "Pair with an Australia trip", "imageQuery": "great barrier reef aerial" },
+    { "id": "northern-lights", "title": "See the northern lights", "emoji": "🌌", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Pick Yukon, Iceland or Norway", "imageQuery": "northern lights aurora mountains" },
+    { "id": "track-day", "title": "Track day", "emoji": "🏁", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Find a driving school day near Toronto", "imageQuery": "race track sports car corner" },
+    { "id": "safari", "title": "Safari (round 2)", "emoji": "🦁", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Pick a new country", "imageQuery": "african safari sunset" },
+    { "id": "mountain-backpack", "title": "Backpack camp a mountain", "emoji": "⛰️", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Pick a multi-day route", "imageQuery": "backpacking tent mountain ridge" },
+    { "id": "california", "title": "California road trip", "emoji": "🚗", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "Sketch the route", "imageQuery": "pacific coast highway big sur" },
+    { "id": "europe", "title": "Backpack through Europe", "emoji": "🎒", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "List must-see cities", "imageQuery": "europe train window travel" },
+    { "id": "seven-wonders", "title": "Visit the 7 wonders", "emoji": "🏛️", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "imageQuery": "machu picchu sunrise" },
+    { "id": "continents", "title": "Every continent (minus Antarctica)", "emoji": "🌍", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "imageQuery": "world map travel" },
+    { "id": "fifty-countries", "title": "Visit 50 countries", "emoji": "🗺️", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "firstMove": "List countries already visited", "imageQuery": "passport stamps" },
+    { "id": "concerts", "title": "Go to 20+ concerts", "emoji": "🎤", "category": "Adventure", "type": "experience", "active": false, "status": "someday", "imageQuery": "concert crowd stage lights" },
+
+    { "id": "hyrox", "title": "Race a HYROX", "emoji": "🏋️", "category": "Body", "type": "experience", "active": false, "status": "someday", "firstMove": "Pick a race date", "imageQuery": "hyrox race sled push" },
+    { "id": "marathon", "title": "Run a full marathon", "emoji": "🏃", "category": "Body", "type": "experience", "active": false, "status": "someday", "firstMove": "Choose a marathon after Maine", "imageQuery": "marathon runners city" },
+    { "id": "full-ironman", "title": "Full Ironman", "emoji": "🔱", "category": "Body", "type": "experience", "active": false, "status": "someday", "requires": ["maine-703", "marathon"], "imageQuery": "ironman finish line night" },
+
+    { "id": "first-sale", "title": "Start a business — first sale", "emoji": "💸", "category": "Build", "type": "experience", "active": false, "status": "someday", "firstMove": "Add the Known Quantity paywall", "imageQuery": "first customer handshake" },
+    { "id": "app-store", "title": "An app on the App Store", "emoji": "🍎", "category": "Build", "type": "experience", "active": false, "status": "someday", "firstMove": "Check Known Quantity's review status", "imageQuery": "iphone app home screen" },
+    { "id": "millionaire", "title": "Millionaire by 30", "emoji": "💰", "category": "Build", "type": "experience", "active": false, "status": "someday", "firstMove": "Write yearly milestones", "imageQuery": "city skyline at night penthouse" },
+    { "id": "property", "title": "Buy my first property", "emoji": "🏠", "category": "Build", "type": "experience", "active": false, "status": "someday", "imageQuery": "toronto house front door" },
+    { "id": "gt3rs", "title": "Own a GT3 RS", "emoji": "🏎️", "category": "Build", "type": "experience", "active": false, "status": "someday", "imageQuery": "porsche gt3 rs" },
+
+    { "id": "travel-film", "title": "Make a travel film", "emoji": "🎬", "category": "Skills", "type": "experience", "active": false, "status": "someday", "firstMove": "Shoot on the next big trip", "imageQuery": "camera filming travel landscape" },
+
+    { "id": "trip-dad", "title": "Dream fishing trip with Dad", "emoji": "🎣", "category": "People", "type": "experience", "active": false, "status": "someday", "firstMove": "Ask Dad where he'd go", "imageQuery": "fly fishing river mountains" },
+    { "id": "trip-mom", "title": "A really cool trip with Mom", "emoji": "✈️", "category": "People", "type": "experience", "active": false, "status": "someday", "firstMove": "Ask Mom where she'd go", "imageQuery": "coastal village travel" },
+    { "id": "trip-sister", "title": "A trip with my sister", "emoji": "🧳", "category": "People", "type": "experience", "active": false, "status": "someday", "firstMove": "Ask her where she'd go", "imageQuery": "city adventure travel friends" },
+    { "id": "trip-friends", "title": "A big trip with my friends", "emoji": "🍻", "category": "People", "type": "experience", "active": false, "status": "someday", "firstMove": "Pick a crew and a place", "imageQuery": "friends road trip sunset" },
+
+    { "id": "journal-year", "title": "Journal every day for a year", "emoji": "✍️", "category": "Mind", "type": "habit", "active": false, "status": "active", "firstMove": "Set the streak start date", "imageQuery": "leather journal pen" }
+  ]
+}

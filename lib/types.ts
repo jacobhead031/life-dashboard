@@ -222,3 +222,43 @@ export type SchoolItem = {
   position: number;
   created_at: string;
 };
+
+export type LifeStep = { label: string; done: boolean; doneDate?: string }; // doneDate YYYY-MM-DD
+
+export type LifeGoal = {
+  id: string;
+  user_id: string;
+  slug: string; // stable id from lib/life-goals.json; `requires` holds these
+  title: string;
+  emoji: string;
+  category: "Adventure" | "Body" | "Build" | "Skills" | "People" | "Mind";
+  type: "experience" | "ladder" | "count" | "countdown" | "habit";
+  active: boolean; // shows on the home card
+  status: "someday" | "active" | "done";
+  why: string | null;
+  first_move: string | null;
+  next_move: string | null;
+  target_date: string | null; // YYYY-MM-DD
+  steps: LifeStep[];
+  count_current: number;
+  season_target: number | null;
+  lifetime_target: number | null;
+  requires: string[];
+  image_query: string | null;
+  cover_url: string | null;
+  cover_credit: string | null;
+  photo_path: string | null; // goal-photos bucket; wins over cover_url
+  completed_on: string | null; // YYYY-MM-DD
+  notes: string | null;
+  position: number;
+  created_at: string;
+};
+
+export type LifeCounterEntry = {
+  id: string;
+  user_id: string;
+  counter: "countries" | "continents" | "wonders" | "concerts";
+  name: string;
+  happened_on: string | null; // YYYY-MM-DD
+  created_at: string;
+};
