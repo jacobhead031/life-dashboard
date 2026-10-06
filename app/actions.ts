@@ -1024,18 +1024,14 @@ export async function setLifeGoalDone(id: string, done: boolean) {
   revalidateLife();
 }
 
-// The browser uploads to the goal-photos bucket, then records the path here. null removes the photo.
+// The cover is one image from the goal's own album. null goes back to the stock cover.
 export async function setLifeGoalPhoto(id: string, path: string | null) {
-  const { supabase, user } = await authed();
-  // The stored path is later handed to storage.remove — keep it inside the owner's folder.
-  if (path !== null && (typeof path !== "string" || !path.startsWith(`${user.id}/${id}/`) || path.split("/").includes("..") || path.length > 1000)) {
-    throw new Error("Invalid photo path");
+  const { supabase } = await authed();
+  if (path !== null) {
+    const media = await ok(supabase.from("life_media").select("id").eq("goal_id", id).eq("path", path).eq("kind", "image").maybeSingle());
+    if (!media) throw new Error("That photo isn't in this goal's album");
   }
-  const goal = await ok(supabase.from("life_goal").select("photo_path").eq("id", id).maybeSingle());
-  if (!goal) throw new Error("Goal not found");
   await ok(supabase.from("life_goal").update({ photo_path: path }).eq("id", id));
-  // Row first: if this remove fails the old object is only an orphan, never a broken cover.
-  if (goal.photo_path && goal.photo_path !== path) await ok(supabase.storage.from("goal-photos").remove([goal.photo_path]));
   revalidateLife();
 }
 
@@ -1094,24 +1090,34 @@ export async function deleteCounterEntry(id: string) {
 }
 
 // The browser uploads to the goal-photos bucket, then records each file here.
-export async function recordLifeMedia(entryId: string, path: string, kind: string) {
+// A goal's first photo becomes its cover.
+export async function recordLifeMedia(owner: "entry" | "goal", ownerId: string, path: string, kind: string) {
   const { supabase, user } = await authed();
   // The stored path is later handed to storage.remove — keep it inside the owner's folder.
-  if (typeof path !== "string" || !path.startsWith(`${user.id}/${entryId}/`) || path.split("/").includes("..") || path.length > 1000) {
+  if (typeof path !== "string" || !path.startsWith(`${user.id}/${ownerId}/`) || path.split("/").includes("..") || path.length > 1000) {
     throw new Error("Invalid file path");
   }
   if (kind !== "image" && kind !== "video") throw new Error("Only photos and videos can go in an album");
-  await ok(supabase.from("life_media").insert({ user_id: user.id, entry_id: entryId, path, kind }));
+  if (owner !== "entry" && owner !== "goal") throw new Error("Album is not valid");
+  await ok(supabase.from("life_media").insert({ user_id: user.id, [owner === "goal" ? "goal_id" : "entry_id"]: ownerId, path, kind }));
+  if (owner === "goal" && kind === "image") {
+    await ok(supabase.from("life_goal").update({ photo_path: path }).eq("id", ownerId).is("photo_path", null));
+  }
   revalidatePath("/life");
 }
 
 export async function deleteLifeMedia(id: string) {
   const { supabase } = await authed();
-  const media = await ok(supabase.from("life_media").select("path").eq("id", id).maybeSingle());
+  const media = await ok(supabase.from("life_media").select("path, goal_id").eq("id", id).maybeSingle());
   if (media) {
     // Object first: a failure here leaves the row, so the file stays visible and retryable.
     await ok(supabase.storage.from("goal-photos").remove([media.path]));
     await ok(supabase.from("life_media").delete().eq("id", id));
+    if (media.goal_id) {
+      // If that was the cover, the next photo in the album takes over (or none).
+      const next = await ok(supabase.from("life_media").select("path").eq("goal_id", media.goal_id).eq("kind", "image").order("created_at").limit(1).maybeSingle());
+      await ok(supabase.from("life_goal").update({ photo_path: next?.path ?? null }).eq("id", media.goal_id).eq("photo_path", media.path));
+    }
   }
   revalidatePath("/life");
 }

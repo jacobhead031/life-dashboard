@@ -1955,6 +1955,11 @@ body {
 .album-grid img { display: block; width: 100%; aspect-ratio: 1; object-fit: cover; }
 .album-grid video { display: block; width: 100%; max-height: 70dvh; background: #000; }
 .album-grid .gd-close { top: 8px; right: 8px; width: 28px; height: 28px; font-size: 12px; }
+.album-cover { position: absolute; left: 8px; bottom: 8px; border-radius: 999px; border: 1px solid rgba(239,230,214,.3); background: rgba(15,12,10,.7); color: var(--bone); font-family: var(--font-space-mono), monospace; font-size: 9.5px; letter-spacing: 1px; text-transform: uppercase; padding: 4px 9px; }
+button.album-cover { cursor: pointer; }
+button.album-cover:hover { border-color: var(--ochre); color: var(--ochre); }
+.album-cover.on { border-color: var(--ochre); color: var(--ochre); }
+.gd.dragging { outline: 2px dashed var(--ochre); outline-offset: -8px; }
 @media (hover: hover) {
   .album-grid .gd-close { opacity: 0; transition: opacity .15s; }
   .album-grid figure:hover .gd-close, .album-grid .gd-close:focus-visible { opacity: 1; }
@@ -2041,7 +2046,8 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
   transform: scale(1.1);
   transition: filter 1.8s cubic-bezier(.2,.7,.2,1), transform 1.8s cubic-bezier(.2,.7,.2,1);
 }
-.goal-card.done .g-cover { filter: none; transform: none; }
+/* My own photo is never blurred: it already happened. */
+.goal-card.done .g-cover, .goal-card.own .g-cover { filter: none; transform: none; }
 .goal-card::before {
   content: "";
   position: absolute;

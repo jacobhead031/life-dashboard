@@ -247,7 +247,7 @@ export type LifeGoal = {
   image_query: string | null;
   cover_url: string | null;
   cover_credit: string | null;
-  photo_path: string | null; // goal-photos bucket; wins over cover_url
+  photo_path: string | null; // the cover: path of one image in this goal's album; wins over cover_url
   completed_on: string | null; // YYYY-MM-DD
   notes: string | null;
   position: number;
@@ -267,8 +267,9 @@ export type LifeCounterEntry = {
 export type LifeMedia = {
   id: string;
   user_id: string;
-  entry_id: string;
-  path: string; // goal-photos bucket: <user_id>/<entry_id>/<ts>-<filename>
+  entry_id: string | null; // album of a counter entry or goal item…
+  goal_id: string | null; // …or of a goal itself; exactly one is set
+  path: string; // goal-photos bucket: <user_id>/<entry_id or goal_id>/<ts>-<filename>
   kind: "image" | "video";
   created_at: string;
 };

@@ -65,7 +65,9 @@ export function LifeContent({
     if (albumId && albumDialog.current && !albumDialog.current.open) albumDialog.current.showModal();
   }, [albumId]);
 
-  const album = entries.find((e) => e.id === albumId);
+  // albumId is an entry's id or a goal's id; both kinds of album open in the same dialog.
+  const albumEntry = entries.find((e) => e.id === albumId);
+  const albumGoal = goals.find((g) => g.id === albumId);
   const removeEntry = (e: LifeCounterEntry) => {
     const n = media.filter((m) => m.entry_id === e.id).length;
     if (confirm(n ? `Remove "${e.name}" and the ${n} photo${n === 1 ? "" : "s"}/video${n === 1 ? "" : "s"} in it? This can't be undone.` : `Remove "${e.name}"?`)) {
@@ -241,7 +243,7 @@ export function LifeContent({
                 const locked = lockedBy(g);
                 const move = g.next_move ?? g.first_move;
                 return (
-                  <button key={g.id} type="button" className={`goal-card${g.status === "done" ? " done" : ""}`} data-cat={g.category} onClick={() => setOpenId(g.id)}>
+                  <button key={g.id} type="button" className={`goal-card${g.status === "done" ? " done" : ""}${g.photo_url ? " own" : ""}`} data-cat={g.category} onClick={() => setOpenId(g.id)}>
                     <span className="g-cover" style={coverStyle(g)} />
                     <span className="g-body">
                       <span className="g-emoji" aria-hidden>{g.emoji}</span>
@@ -291,15 +293,20 @@ export function LifeContent({
       <dialog
         ref={albumDialog}
         className="life life-dialog"
-        aria-label={album?.name}
+        aria-label={albumEntry?.name ?? albumGoal?.title}
         onClose={() => setAlbumId(null)}
         onClick={(e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }}
       >
-        {album && (
+        {albumId && (albumEntry || albumGoal) && (
           <Album
-            key={album.id}
-            entry={album}
-            media={media.filter((m) => m.entry_id === album.id)}
+            key={albumId}
+            owner={albumGoal ? "goal" : "entry"}
+            ownerId={albumId}
+            title={albumGoal ? `${albumGoal.emoji} ${albumGoal.title}` : albumEntry!.name}
+            kicker={albumGoal ? "album" : albumEntry!.happened_on ? longDate(albumEntry!.happened_on) : "album"}
+            media={media.filter((m) => m.entry_id === albumId || m.goal_id === albumId)}
+            coverPath={albumGoal?.photo_path}
+            makeCover={albumGoal && ((m) => update({ id: albumGoal.id, photo_path: m.path, photo_url: m.url }, () => setLifeGoalPhoto(albumGoal.id, m.path)))}
             close={() => albumDialog.current?.close()}
             remove={(m) => { if (confirm("Delete this from the album? This can't be undone.")) startTransition(async () => { await deleteLifeMedia(m.id); }); }}
           />
@@ -324,14 +331,34 @@ function EntryRow({ entry: e, media, disabled, open, remove }: { entry: LifeCoun
 }
 
 // Photos and videos for one entry: a trip, a concert, a song played all the way through.
-function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media: Media[]; close: () => void; remove: (m: Media) => void }) {
+function Album({
+  owner,
+  ownerId,
+  title,
+  kicker,
+  media,
+  coverPath,
+  makeCover,
+  close,
+  remove,
+}: {
+  owner: "entry" | "goal";
+  ownerId: string;
+  title: string;
+  kicker: string;
+  media: Media[];
+  coverPath?: string | null; // goals only: which image is on the card
+  makeCover?: (m: Media) => void;
+  close: () => void;
+  remove: (m: Media) => void;
+}) {
   const [progress, setProgress] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
+  const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(e.target.files ?? []);
-    if (!files.length) return;
+  async function upload(files: File[]) {
+    if (!files.length || progress) return;
     setErrors([]);
     const failed: string[] = [];
     const supabase = createClient();
@@ -343,11 +370,11 @@ function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media
         const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
         if (!kind) throw new Error("not a photo or video");
         // Storage keys reject spaces and accents; phone filenames are full of them.
-        const path = `${user.id}/${entry.id}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+        const path = `${user.id}/${ownerId}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
         const { error } = await supabase.storage.from("goal-photos").upload(path, file, { contentType: file.type });
         if (error) throw error;
         try {
-          await recordLifeMedia(entry.id, path, kind);
+          await recordLifeMedia(owner, ownerId, path, kind);
         } catch (err) {
           // No row means nothing would ever list or delete the object.
           await supabase.storage.from("goal-photos").remove([path]);
@@ -359,16 +386,21 @@ function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media
     }
     setErrors(failed);
     setProgress(null);
-    e.target.value = "";
   }
 
   return (
-    <div className="gd">
+    // Drop target: photos can be dragged straight out of the Photos app or Finder.
+    <div
+      className={`gd${dragging ? " dragging" : ""}`}
+      onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+      onDragLeave={(e) => { if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragging(false); }}
+      onDrop={(e) => { e.preventDefault(); setDragging(false); upload(Array.from(e.dataTransfer.files)); }}
+    >
       <div className="gd-body">
         <div className="album-head">
           <div>
-            <div className="life-kicker">{entry.happened_on ? longDate(entry.happened_on) : "album"}</div>
-            <h2 className="album-title">{entry.name}</h2>
+            <div className="life-kicker">{kicker}</div>
+            <h2 className="album-title">{title}</h2>
           </div>
           <button type="button" className="gd-close" style={{ position: "static" }} aria-label="Close" onClick={close}>✕</button>
         </div>
@@ -376,7 +408,8 @@ function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media
           <button type="button" className="btn primary" disabled={!!progress} onClick={() => fileInput.current?.click()}>
             {progress ?? "add photos & videos"}
           </button>
-          <input ref={fileInput} type="file" accept="image/*,video/*" multiple hidden onChange={handleFiles} />
+          <input ref={fileInput} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
+          <span className="ty-sub">or drag them in from Photos</span>
         </div>
         {errors.map((msg) => <p key={msg} className="gd-error" role="alert">{msg}</p>)}
         {media.length === 0 ? (
@@ -392,6 +425,11 @@ function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media
                   <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt="" loading="lazy" /></a>
                 )}
                 <button type="button" className="gd-close" aria-label="Delete from album" onClick={() => remove(m)}>✕</button>
+                {makeCover && m.kind === "image" && (
+                  m.path === coverPath
+                    ? <span className="album-cover on">★ cover</span>
+                    : <button type="button" className="album-cover" onClick={() => makeCover(m)}>make cover</button>
+                )}
               </figure>
             ))}
           </div>
@@ -427,9 +465,7 @@ function GoalDetail({
   addEntry: (name: string, date: string | null) => void;
 }) {
   const [newStep, setNewStep] = useState("");
-  const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<string | null>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
+  const albumCount = media.filter((m) => m.goal_id === g.id).length;
   const done = g.status === "done";
   const hasSteps = g.steps.length > 0 || g.type === "ladder" || g.type === "countdown";
 
@@ -461,35 +497,9 @@ function GoalDetail({
     update({ id: g.id, ...write }, () => saveLifeGoal(g.id, write));
   }
 
-  async function handlePhoto(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploading(true);
-    setUploadError(null);
-    const supabase = createClient();
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("not signed in");
-      const path = `${user.id}/${g.id}/${Date.now()}-${file.name}`;
-      const { error } = await supabase.storage.from("goal-photos").upload(path, file);
-      if (error) throw error;
-      try {
-        await setLifeGoalPhoto(g.id, path);
-      } catch (err) {
-        // No row pointing at it means nothing would ever show or delete the object.
-        await supabase.storage.from("goal-photos").remove([path]);
-        throw err;
-      }
-    } catch (err) {
-      setUploadError(err instanceof Error ? err.message : "upload failed");
-    }
-    setUploading(false);
-    e.target.value = "";
-  }
-
   return (
     <div className="gd">
-      <div className={`gd-hero goal-card${done ? " done" : ""}`} data-cat={g.category}>
+      <div className={`gd-hero goal-card${done ? " done" : ""}${g.photo_url ? " own" : ""}`} data-cat={g.category}>
         <span className="g-cover" style={coverStyle(g)} />
         <span className="g-body">
           <span className="g-emoji" aria-hidden>{g.emoji}</span>
@@ -502,28 +512,19 @@ function GoalDetail({
 
       <div className="gd-body">
         <div className="gd-actions">
+          <button type="button" className="btn primary" onClick={() => openAlbum(g.id)}>
+            {albumCount ? `photos & videos · ${albumCount}` : "add photos & videos"}
+          </button>
           {done ? (
-            <>
-              <button type="button" className="btn primary" disabled={uploading} onClick={() => fileInput.current?.click()}>
-                {uploading ? "uploading…" : g.photo_path ? "replace my photo" : "add my photo"}
-              </button>
-              {g.photo_path && (
-                <button type="button" className="d-btn danger" onClick={() => { if (confirm("Remove your photo?")) update({ id: g.id, photo_path: null, photo_url: undefined }, () => setLifeGoalPhoto(g.id, null)); }}>
-                  remove photo
-                </button>
-              )}
-              <button type="button" className="d-btn" onClick={() => update({ id: g.id, status: g.active ? "active" : "someday", completed_on: null }, () => setLifeGoalDone(g.id, false))}>
-                undo done
-              </button>
-              <input ref={fileInput} type="file" accept="image/*" hidden onChange={handlePhoto} />
-            </>
+            <button type="button" className="d-btn" onClick={() => update({ id: g.id, status: g.active ? "active" : "someday", completed_on: null }, () => setLifeGoalDone(g.id, false))}>
+              undo done
+            </button>
           ) : (
-            <button type="button" className="btn primary" onClick={() => update({ id: g.id, status: "done", completed_on: today }, () => setLifeGoalDone(g.id, true))}>
+            <button type="button" className="btn" onClick={() => update({ id: g.id, status: "done", completed_on: today }, () => setLifeGoalDone(g.id, true))}>
               mark done
             </button>
           )}
         </div>
-        {uploadError && <p className="gd-error" role="alert">Photo upload failed: {uploadError}</p>}
 
         {g.type === "count" && (
           <div className="gd-count">
