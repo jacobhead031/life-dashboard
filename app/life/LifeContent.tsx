@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
+import dynamic from "next/dynamic";
 import { createClient } from "@/lib/supabase/client";
+import { distinctCountries } from "@/lib/countries";
 import type { LifeCounterEntry, LifeGoal, LifeMedia, LifeStep } from "@/lib/types";
 import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
 import {
@@ -24,6 +26,9 @@ type Goal = LifeGoal & { photo_url?: string };
 type Media = LifeMedia & { url?: string };
 type Patch = Partial<Goal> & { id: string };
 type Filter = "all" | "active" | "someday" | "done";
+
+// The map carries ~750 KB of country shapes, so it only loads when Countries is opened.
+const CountriesMap = dynamic(() => import("./CountriesMap"), { ssr: false, loading: () => <p className="life-none" style={{ padding: 24 }}>Unrolling the map…</p> });
 
 const longDate = (d: string) =>
   new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
@@ -56,6 +61,12 @@ export function LifeContent({
   const [albumId, setAlbumId] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
   const albumDialog = useRef<HTMLDialogElement>(null);
+  const [mapOpen, setMapOpen] = useState(false);
+  const mapDialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    if (mapOpen && mapDialog.current && !mapDialog.current.open) mapDialog.current.showModal();
+  }, [mapOpen]);
+  const countryEntries = entries.filter((e) => e.counter === "countries");
 
   useEffect(() => {
     if (openId && dialog.current && !dialog.current.open) dialog.current.showModal();
@@ -115,10 +126,11 @@ export function LifeContent({
             type="button"
             className={`life-counter${openCounter === c.key ? " open" : ""}`}
             aria-expanded={openCounter === c.key}
-            onClick={() => setOpenCounter(openCounter === c.key ? null : c.key)}
+            onClick={() => (c.key === "countries" ? setMapOpen(true) : setOpenCounter(openCounter === c.key ? null : c.key))}
           >
             <span className="life-counter-num">
-              {entries.filter((e) => e.counter === c.key).length}<small>/{c.target}</small>
+              {/* Two trips to France are still one country. */}
+              {c.key === "countries" ? distinctCountries(countryEntries.map((e) => e.name)) : entries.filter((e) => e.counter === c.key).length}<small>/{c.target}</small>
             </span>
             <span className="life-kicker">{c.label}</span>
           </button>
@@ -286,6 +298,21 @@ export function LifeContent({
             openAlbum={setAlbumId}
             removeEntry={removeEntry}
             addEntry={(name, date) => startTransition(async () => { await addGoalEntry(open.id, name, date); })}
+          />
+        )}
+      </dialog>
+
+      {/* Before the album dialog: an album opened from the map has to stack on top of it. */}
+      <dialog ref={mapDialog} className="life life-dialog map-dialog" aria-label="Countries I've been to" onClose={() => setMapOpen(false)}>
+        {mapOpen && (
+          <CountriesMap
+            entries={countryEntries}
+            target={LIFE_COUNTERS[0].target}
+            busy={isPending}
+            add={(name, date) => startTransition(async () => { await addCounterEntry("countries", name, date); })}
+            openAlbum={setAlbumId}
+            renderEntry={(e) => <EntryRow key={e.id} entry={e} media={media} disabled={isPending} open={() => setAlbumId(e.id)} remove={() => removeEntry(e)} />}
+            close={() => mapDialog.current?.close()}
           />
         )}
       </dialog>

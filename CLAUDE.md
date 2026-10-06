@@ -78,7 +78,8 @@ journal_log: user_id, date (pk on both);  user_settings.journal_start date
 - The life list lives at **`/life`** (tab label "Goals"). `/goals` is still Monthly goals.
 - `active` (shows on the home "this year" card) and `status` are independent; the home card shows `active` goals whose status isn't `done`.
 - "Today's move" is the `next_move` of one active goal, rotated by date (`moveGoalForDay` in `lib/life.ts`). Done writes a `life_move_log` row and clears `next_move`.
-- Counter totals are row counts; targets and the season window are constants in `lib/life.ts`. `count_current` is one number shown against both targets, so rolling the season over does not reset it.
+- **Countries** count distinct countries, not rows: `countryKey` in `lib/countries.ts` folds repeat trips and spellings ("USA" = "United States"). Its counter opens the map (`app/life/CountriesMap.tsx`, d3-geo on canvas, lazy-loaded); an entry lights up when its name matches a map country.
+- Other counter totals are row counts; targets and the season window are constants in `lib/life.ts`. `count_current` is one number shown against both targets, so rolling the season over does not reset it.
 - Every goal has an album too (`life_media.goal_id`; exactly one of `entry_id` / `goal_id` is set). `photo_path` is the cover and must be the path of an image in that goal's album: the first photo uploaded sets it, "make cover" changes it, and deleting the cover image hands it to the next one. A card with its own photo is shown unblurred even before it's done.
 - Cover precedence: `photo_path` (private `goal-photos` bucket, `<user_id>/<goal_id>/<ts>-<filename>`, signed per render) > `cover_url` > the category gradient in CSS. `fillCovers` fills `cover_url` from Unsplash when `UNSPLASH_ACCESS_KEY` is set.
 - Seed: `lib/life-goals.json` via `seedLifeGoals` (skips slugs that already exist).
