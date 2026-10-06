@@ -2,12 +2,15 @@
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
 import { createClient } from "@/lib/supabase/client";
-import type { LifeCounterEntry, LifeGoal, LifeStep } from "@/lib/types";
+import type { LifeCounterEntry, LifeGoal, LifeMedia, LifeStep } from "@/lib/types";
 import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
 import {
   addCounterEntry,
+  addGoalEntry,
   addLifeGoal,
   deleteCounterEntry,
+  deleteLifeMedia,
+  recordLifeMedia,
   fillCovers,
   saveLifeGoal,
   saveLifeGoalSteps,
@@ -18,6 +21,7 @@ import {
 } from "@/app/actions";
 
 type Goal = LifeGoal & { photo_url?: string };
+type Media = LifeMedia & { url?: string };
 type Patch = Partial<Goal> & { id: string };
 type Filter = "all" | "active" | "someday" | "done";
 
@@ -33,11 +37,13 @@ function coverStyle(g: Goal): React.CSSProperties | undefined {
 export function LifeContent({
   goals: serverGoals,
   entries,
+  media,
   canFetchCovers,
   todayStr: today,
 }: {
   goals: Goal[];
   entries: LifeCounterEntry[];
+  media: Media[];
   canFetchCovers: boolean;
   todayStr: string;
 }) {
@@ -47,11 +53,25 @@ export function LifeContent({
   const [openId, setOpenId] = useState<string | null>(null);
   const [openCounter, setOpenCounter] = useState<string | null>(null);
   const [showAdd, setShowAdd] = useState(false);
+  const [albumId, setAlbumId] = useState<string | null>(null);
   const dialog = useRef<HTMLDialogElement>(null);
+  const albumDialog = useRef<HTMLDialogElement>(null);
 
   useEffect(() => {
     if (openId && dialog.current && !dialog.current.open) dialog.current.showModal();
   }, [openId]);
+  // Opened after the goal dialog, so an album launched from a goal sits on top of it.
+  useEffect(() => {
+    if (albumId && albumDialog.current && !albumDialog.current.open) albumDialog.current.showModal();
+  }, [albumId]);
+
+  const album = entries.find((e) => e.id === albumId);
+  const removeEntry = (e: LifeCounterEntry) => {
+    const n = media.filter((m) => m.entry_id === e.id).length;
+    if (confirm(n ? `Remove "${e.name}" and the ${n} photo${n === 1 ? "" : "s"}/video${n === 1 ? "" : "s"} in it? This can't be undone.` : `Remove "${e.name}"?`)) {
+      startTransition(async () => { await deleteCounterEntry(e.id); });
+    }
+  };
 
   const open = goals.find((g) => g.id === openId);
   const shown = goals.filter((g) => filter === "all" || g.status === filter);
@@ -106,17 +126,7 @@ export function LifeContent({
         <div className="add-panel">
           <div className="add-panel-title">{counter.label}</div>
           {entries.filter((e) => e.counter === counter.key).map((e) => (
-            <div key={e.id} className="life-entry">
-              <span>{e.name}</span>
-              <span className="life-entry-date">{e.happened_on ? longDate(e.happened_on) : ""}</span>
-              <button
-                type="button"
-                className="d-btn danger"
-                aria-label={`Remove ${e.name}`}
-                disabled={isPending}
-                onClick={() => { if (confirm(`Remove "${e.name}"?`)) startTransition(async () => { await deleteCounterEntry(e.id); }); }}
-              >✕</button>
-            </div>
+            <EntryRow key={e.id} entry={e} media={media} disabled={isPending} open={() => setAlbumId(e.id)} remove={() => removeEntry(e)} />
           ))}
           <form
             className="d-form-row"
@@ -268,9 +278,125 @@ export function LifeContent({
             today={today}
             update={update}
             close={() => dialog.current?.close()}
+            entries={entries.filter((e) => e.goal_id === open.id)}
+            media={media}
+            busy={isPending}
+            openAlbum={setAlbumId}
+            removeEntry={removeEntry}
+            addEntry={(name, date) => startTransition(async () => { await addGoalEntry(open.id, name, date); })}
           />
         )}
       </dialog>
+
+      <dialog
+        ref={albumDialog}
+        className="life life-dialog"
+        aria-label={album?.name}
+        onClose={() => setAlbumId(null)}
+        onClick={(e) => { if (e.target === e.currentTarget) e.currentTarget.close(); }}
+      >
+        {album && (
+          <Album
+            key={album.id}
+            entry={album}
+            media={media.filter((m) => m.entry_id === album.id)}
+            close={() => albumDialog.current?.close()}
+            remove={(m) => { if (confirm("Delete this from the album? This can't be undone.")) startTransition(async () => { await deleteLifeMedia(m.id); }); }}
+          />
+        )}
+      </dialog>
+    </div>
+  );
+}
+
+// One line in a counter or a goal's list. The name opens its album.
+function EntryRow({ entry: e, media, disabled, open, remove }: { entry: LifeCounterEntry; media: Media[]; disabled: boolean; open: () => void; remove: () => void }) {
+  const n = media.filter((m) => m.entry_id === e.id).length;
+  return (
+    <div className="life-entry">
+      <button type="button" className="life-entry-name" onClick={open}>
+        {e.name} <span className="life-entry-date">{n ? `${n} in album →` : "add photos & video →"}</span>
+      </button>
+      <span className="life-entry-date">{e.happened_on ? longDate(e.happened_on) : ""}</span>
+      <button type="button" className="d-btn danger" aria-label={`Remove ${e.name}`} disabled={disabled} onClick={remove}>✕</button>
+    </div>
+  );
+}
+
+// Photos and videos for one entry: a trip, a concert, a song played all the way through.
+function Album({ entry, media, close, remove }: { entry: LifeCounterEntry; media: Media[]; close: () => void; remove: (m: Media) => void }) {
+  const [progress, setProgress] = useState<string | null>(null);
+  const [errors, setErrors] = useState<string[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
+
+  async function handleFiles(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (!files.length) return;
+    setErrors([]);
+    const failed: string[] = [];
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    for (const [i, file] of files.entries()) {
+      setProgress(`uploading ${i + 1} of ${files.length}…`);
+      try {
+        if (!user) throw new Error("not signed in");
+        const kind = file.type.startsWith("video/") ? "video" : file.type.startsWith("image/") ? "image" : null;
+        if (!kind) throw new Error("not a photo or video");
+        // Storage keys reject spaces and accents; phone filenames are full of them.
+        const path = `${user.id}/${entry.id}/${Date.now()}-${file.name.replace(/[^\w.-]+/g, "_")}`;
+        const { error } = await supabase.storage.from("goal-photos").upload(path, file, { contentType: file.type });
+        if (error) throw error;
+        try {
+          await recordLifeMedia(entry.id, path, kind);
+        } catch (err) {
+          // No row means nothing would ever list or delete the object.
+          await supabase.storage.from("goal-photos").remove([path]);
+          throw err;
+        }
+      } catch (err) {
+        failed.push(`${file.name}: ${err instanceof Error ? err.message : "upload failed"}`);
+      }
+    }
+    setErrors(failed);
+    setProgress(null);
+    e.target.value = "";
+  }
+
+  return (
+    <div className="gd">
+      <div className="gd-body">
+        <div className="album-head">
+          <div>
+            <div className="life-kicker">{entry.happened_on ? longDate(entry.happened_on) : "album"}</div>
+            <h2 className="album-title">{entry.name}</h2>
+          </div>
+          <button type="button" className="gd-close" style={{ position: "static" }} aria-label="Close" onClick={close}>✕</button>
+        </div>
+        <div className="gd-actions">
+          <button type="button" className="btn primary" disabled={!!progress} onClick={() => fileInput.current?.click()}>
+            {progress ?? "add photos & videos"}
+          </button>
+          <input ref={fileInput} type="file" accept="image/*,video/*" multiple hidden onChange={handleFiles} />
+        </div>
+        {errors.map((msg) => <p key={msg} className="gd-error" role="alert">{msg}</p>)}
+        {media.length === 0 ? (
+          <p className="life-none" style={{ marginTop: 0 }}>Nothing here yet. Add the photos and videos that prove it happened.</p>
+        ) : (
+          <div className="album-grid">
+            {media.map((m) => (
+              <figure key={m.id} className={m.kind === "video" ? "wide" : ""}>
+                {m.kind === "video" ? (
+                  <video src={m.url} controls playsInline preload="metadata" />
+                ) : (
+                  // eslint-disable-next-line @next/next/no-img-element -- signed, short-lived storage URL; next/image would need remotePatterns and re-optimise private files
+                  <a href={m.url} target="_blank" rel="noreferrer"><img src={m.url} alt="" loading="lazy" /></a>
+                )}
+                <button type="button" className="gd-close" aria-label="Delete from album" onClick={() => remove(m)}>✕</button>
+              </figure>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -281,12 +407,24 @@ function GoalDetail({
   today,
   update,
   close,
+  entries,
+  media,
+  busy,
+  openAlbum,
+  removeEntry,
+  addEntry,
 }: {
   goal: Goal;
   locked: Goal[];
   today: string;
   update: (p: Patch, write: () => Promise<void>) => void;
   close: () => void;
+  entries: LifeCounterEntry[]; // this goal's named items (songs, dishes)
+  media: Media[];
+  busy: boolean;
+  openAlbum: (entryId: string) => void;
+  removeEntry: (e: LifeCounterEntry) => void;
+  addEntry: (name: string, date: string | null) => void;
 }) {
   const [newStep, setNewStep] = useState("");
   const [uploading, setUploading] = useState(false);
@@ -397,6 +535,29 @@ function GoalDetail({
               {g.season_target != null && g.lifetime_target != null && " · "}
               {g.lifetime_target != null && <>{g.count_current} / {g.lifetime_target} lifetime</>}
             </span>
+          </div>
+        )}
+
+        {g.type === "count" && (
+          <div className="gd-steps">
+            <div className="life-kicker">the list · open one to add the proof</div>
+            {entries.map((e) => (
+              <EntryRow key={e.id} entry={e} media={media} disabled={busy} open={() => openAlbum(e.id)} remove={() => removeEntry(e)} />
+            ))}
+            <form
+              className="quick-add-row"
+              onSubmit={(ev) => {
+                ev.preventDefault();
+                const form = ev.currentTarget;
+                const name = String(new FormData(form).get("name") ?? "").trim();
+                if (!name) return;
+                addEntry(name, today);
+                form.reset();
+              }}
+            >
+              <input className="quick-add-input" name="name" placeholder="Add one by name (counts as +1)…" aria-label="Add a named item" maxLength={200} required />
+              <button type="submit" className="d-btn" disabled={busy}>add</button>
+            </form>
           </div>
         )}
 

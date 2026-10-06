@@ -257,8 +257,18 @@ export type LifeGoal = {
 export type LifeCounterEntry = {
   id: string;
   user_id: string;
-  counter: "countries" | "continents" | "wonders" | "concerts";
+  counter: "countries" | "continents" | "wonders" | "concerts" | null; // null when it belongs to a goal
+  goal_id: string | null; // a named item on a count goal (a song, a dish)
   name: string;
   happened_on: string | null; // YYYY-MM-DD
+  created_at: string;
+};
+
+export type LifeMedia = {
+  id: string;
+  user_id: string;
+  entry_id: string;
+  path: string; // goal-photos bucket: <user_id>/<entry_id>/<ts>-<filename>
+  kind: "image" | "video";
   created_at: string;
 };

@@ -81,6 +81,7 @@ journal_log: user_id, date (pk on both);  user_settings.journal_start date
 - Counter totals are row counts; targets and the season window are constants in `lib/life.ts`. `count_current` is one number shown against both targets, so rolling the season over does not reset it.
 - Cover precedence: `photo_path` (private `goal-photos` bucket, `<user_id>/<goal_id>/<ts>-<filename>`, signed per render) > `cover_url` > the category gradient in CSS. `fillCovers` fills `cover_url` from Unsplash when `UNSPLASH_ACCESS_KEY` is set.
 - Seed: `lib/life-goals.json` via `seedLifeGoals` (skips slugs that already exist).
+- **Albums:** a `life_counter_entry` belongs to a counter (`counter` set) or to a count goal (`goal_id` set, e.g. a song), never both. `life_media` (`entry_id`, `path`, `kind` image|video) holds its photos and videos in the `goal-photos` bucket at `<user_id>/<entry_id>/<ts>-<filename>`. Adding a goal entry bumps `count_current`; deleting one drops it. `deleteCounterEntry` removes the album's storage objects first (storage doesn't cascade).
 
 ## Key rules
 

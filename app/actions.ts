@@ -1063,9 +1063,56 @@ export async function addCounterEntry(counter: string, name: string, happenedOn:
   revalidatePath("/life");
 }
 
+// A named item on a count goal (a song, a dish). Adding one counts as +1.
+export async function addGoalEntry(goalId: string, name: string, happenedOn: string | null) {
+  const { supabase, user } = await authed();
+  const goal = await ok(supabase.from("life_goal").select("count_current").eq("id", goalId).maybeSingle());
+  if (!goal) throw new Error("Goal not found");
+  await ok(supabase.from("life_counter_entry").insert({
+    user_id: user.id,
+    goal_id: goalId,
+    name: str(name, "Name", 200),
+    happened_on: happenedOn ? fmt(happenedOn, DATE, "Date") : null,
+  }));
+  await ok(supabase.from("life_goal").update({ count_current: goal.count_current + 1 }).eq("id", goalId));
+  revalidateLife();
+}
+
 export async function deleteCounterEntry(id: string) {
   const { supabase } = await authed();
+  const entry = await ok(supabase.from("life_counter_entry").select("goal_id, life_media(path)").eq("id", id).maybeSingle());
+  if (!entry) return;
+  // Storage doesn't cascade: album files go first, so a failure leaves the entry visible and retryable.
+  const paths = (entry.life_media ?? []).map((m) => m.path);
+  if (paths.length) await ok(supabase.storage.from("goal-photos").remove(paths));
   await ok(supabase.from("life_counter_entry").delete().eq("id", id));
+  if (entry.goal_id) {
+    const goal = await ok(supabase.from("life_goal").select("count_current").eq("id", entry.goal_id).maybeSingle());
+    if (goal) await ok(supabase.from("life_goal").update({ count_current: Math.max(0, goal.count_current - 1) }).eq("id", entry.goal_id));
+  }
+  revalidateLife();
+}
+
+// The browser uploads to the goal-photos bucket, then records each file here.
+export async function recordLifeMedia(entryId: string, path: string, kind: string) {
+  const { supabase, user } = await authed();
+  // The stored path is later handed to storage.remove — keep it inside the owner's folder.
+  if (typeof path !== "string" || !path.startsWith(`${user.id}/${entryId}/`) || path.split("/").includes("..") || path.length > 1000) {
+    throw new Error("Invalid file path");
+  }
+  if (kind !== "image" && kind !== "video") throw new Error("Only photos and videos can go in an album");
+  await ok(supabase.from("life_media").insert({ user_id: user.id, entry_id: entryId, path, kind }));
+  revalidatePath("/life");
+}
+
+export async function deleteLifeMedia(id: string) {
+  const { supabase } = await authed();
+  const media = await ok(supabase.from("life_media").select("path").eq("id", id).maybeSingle());
+  if (media) {
+    // Object first: a failure here leaves the row, so the file stays visible and retryable.
+    await ok(supabase.storage.from("goal-photos").remove([media.path]));
+    await ok(supabase.from("life_media").delete().eq("id", id));
+  }
   revalidatePath("/life");
 }
 
