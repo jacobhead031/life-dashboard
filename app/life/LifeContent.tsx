@@ -14,6 +14,7 @@ import {
   deleteLifeMedia,
   recordLifeMedia,
   fillCovers,
+  saveEntryNotes,
   saveLifeGoal,
   saveLifeGoalSteps,
   seedLifeGoals,
@@ -334,6 +335,8 @@ export function LifeContent({
             media={media.filter((m) => m.entry_id === albumId || m.goal_id === albumId)}
             coverPath={albumGoal?.photo_path}
             makeCover={albumGoal && ((m) => update({ id: albumGoal.id, photo_path: m.path, photo_url: m.url }, () => setLifeGoalPhoto(albumGoal.id, m.path)))}
+            notes={albumEntry ? albumEntry.notes ?? "" : undefined}
+            saveNotes={albumEntry && ((notes) => startTransition(async () => { await saveEntryNotes(albumEntry.id, notes); }))}
             close={() => albumDialog.current?.close()}
             remove={(m) => { if (confirm("Delete this from the album? This can't be undone.")) startTransition(async () => { await deleteLifeMedia(m.id); }); }}
           />
@@ -349,7 +352,8 @@ function EntryRow({ entry: e, media, disabled, open, remove }: { entry: LifeCoun
   return (
     <div className="life-entry">
       <button type="button" className="life-entry-name" onClick={open}>
-        {e.name} <span className="life-entry-date">{n ? `${n} in album →` : "add photos & video →"}</span>
+        {e.name} <span className="life-entry-date">{n ? `${n} in album →` : e.notes ? "open →" : "add photos & video →"}</span>
+        {e.notes && <span className="life-entry-note">{e.notes.split("\n")[0]}</span>}
       </button>
       <span className="life-entry-date">{e.happened_on ? longDate(e.happened_on) : ""}</span>
       <button type="button" className="d-btn danger" aria-label={`Remove ${e.name}`} disabled={disabled} onClick={remove}>✕</button>
@@ -366,6 +370,8 @@ function Album({
   media,
   coverPath,
   makeCover,
+  notes,
+  saveNotes,
   close,
   remove,
 }: {
@@ -376,6 +382,8 @@ function Album({
   media: Media[];
   coverPath?: string | null; // goals only: which image is on the card
   makeCover?: (m: Media) => void;
+  notes?: string; // entries only: the recipe, the review
+  saveNotes?: (notes: string) => void;
   close: () => void;
   remove: (m: Media) => void;
 }) {
@@ -383,6 +391,14 @@ function Album({
   const [errors, setErrors] = useState<string[]>([]);
   const [dragging, setDragging] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  // Escape closes the dialog without a blur, so an unsaved draft is flushed on unmount instead.
+  const draft = useRef<string | null>(null);
+  const latest = useRef({ notes, saveNotes });
+  useEffect(() => { latest.current = { notes, saveNotes }; });
+  useEffect(() => () => {
+    const { notes, saveNotes } = latest.current;
+    if (draft.current !== null && draft.current !== notes) saveNotes?.(draft.current);
+  }, []);
 
   async function upload(files: File[]) {
     if (!files.length || progress) return;
@@ -459,6 +475,19 @@ function Album({
                 )}
               </figure>
             ))}
+          </div>
+        )}
+        {saveNotes && (
+          <div className="album-notes">
+            <div className="life-kicker">notes</div>
+            <textarea
+              defaultValue={notes}
+              placeholder="The recipe, the review, how it went…"
+              aria-label="Notes"
+              maxLength={20000}
+              onChange={(e) => { draft.current = e.target.value; }}
+              onBlur={(e) => { if (e.target.value !== notes) { draft.current = null; saveNotes(e.target.value); } }}
+            />
           </div>
         )}
       </div>

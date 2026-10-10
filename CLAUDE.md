@@ -71,7 +71,7 @@ life_goal: id uuid, user_id uuid, slug text (unique per user), title text, emoji
   count_current int, season_target int, lifetime_target int, requires text[] (slugs),
   image_query text, cover_url text, cover_credit text, photo_path text, completed_on date,
   notes text, position double precision, created_at timestamptz
-life_counter_entry: id, user_id, counter text (countries|continents|wonders|concerts), name text, happened_on date
+life_counter_entry: id, user_id, counter text (countries|continents|wonders|concerts), name text, happened_on date, notes text (recipe / review, edited in the entry's album)
 life_move_log: id, user_id, goal_id uuid (fk life_goal, cascade), move text, done_on date
 journal_log: user_id, date (pk on both);  user_settings.journal_start date
 ```

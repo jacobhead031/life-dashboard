@@ -1074,6 +1074,14 @@ export async function addGoalEntry(goalId: string, name: string, happenedOn: str
   revalidateLife();
 }
 
+// Free text on an entry; empty clears it.
+export async function saveEntryNotes(id: string, notes: string) {
+  const { supabase } = await authed();
+  if (typeof notes !== "string" || notes.length > 20_000) throw new Error("Notes must be under 20000 characters");
+  await ok(supabase.from("life_counter_entry").update({ notes: notes.trim() || null }).eq("id", id));
+  revalidateLife();
+}
+
 export async function deleteCounterEntry(id: string) {
   const { supabase } = await authed();
   const entry = await ok(supabase.from("life_counter_entry").select("goal_id, life_media(path)").eq("id", id).maybeSingle());

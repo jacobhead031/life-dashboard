@@ -261,6 +261,7 @@ export type LifeCounterEntry = {
   goal_id: string | null; // a named item on a count goal (a song, a dish)
   name: string;
   happened_on: string | null; // YYYY-MM-DD
+  notes: string | null; // the recipe, the review, the story
   created_at: string;
 };
 
