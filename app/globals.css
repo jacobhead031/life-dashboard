@@ -2291,3 +2291,4 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-splits dt { font-family: var(--font-space-mono), monospace; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); }
 .coach-splits dd { margin: 0; font-family: var(--font-space-grotesk), sans-serif; font-size: 20px; line-height: 1.1; }
 .coach-splits .coach-meta { font-size: 11.5px; }
+.coach-weeknav { display: flex; gap: 6px; }

@@ -103,7 +103,11 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
   const [sessions, patchSession] = useOptimistic(week, (state, p: Partial<TriSession> & { id: string }) =>
     state.map((s) => (s.id === p.id ? { ...s, ...p } : s)));
   const [picked, setPicked] = useState<string | null>(null);
-  const monday = weekMonday(today);
+  const [weekOffset, setWeekOffset] = useState(0); // 0 = this week; the page loads 2 back and 6 ahead
+  const thisMonday = weekMonday(today);
+  const monday = addDays(thisMonday, 7 * weekOffset);
+  const weekSessions = sessions.filter((s) => s.date >= monday && s.date <= addDays(monday, 6));
+  const isDraft = weekOffset > 1; // only next week is written in full and on the watch
   const todays = sessions.filter((s) => s.date === today);
   const pickedSession = sessions.find((s) => s.id === picked) ?? null;
   const todayHealth = health.find((h) => h.date === today) ?? null;
@@ -127,11 +131,11 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
   const [calDate, setCalDate] = useState(today);
   const calRow = health.find((h) => h.date === calDate) ?? null;
 
-  const hoursBySport = sessions.filter((s) => s.sport !== "hockey").reduce<Record<string, number>>((acc, s) => {
+  const hoursBySport = weekSessions.filter((s) => s.sport !== "hockey").reduce<Record<string, number>>((acc, s) => {
     if (s.status === "done" || s.status === "partial") acc[s.sport] = (acc[s.sport] ?? 0) + (s.duration_min ?? 0);
     return acc;
   }, {});
-  const plannedMin = sessions.filter((s) => s.sport !== "hockey").reduce((a, s) => a + (s.duration_min ?? 0), 0);
+  const plannedMin = weekSessions.filter((s) => s.sport !== "hockey").reduce((a, s) => a + (s.duration_min ?? 0), 0);
   const doneMin = Object.values(hoursBySport).reduce((a, b) => a + b, 0);
 
   return (
@@ -190,16 +194,25 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
 
       <section className="card span-6">
         <div className="card-label">
-          <span>this week · {Math.round(doneMin / 6) / 10} of {Math.round(plannedMin / 6) / 10} h</span>
-          <span className="card-nav">{Object.entries(hoursBySport).map(([k, v]) => `${k} ${(v / 60).toFixed(1)}h`).join(" · ")}</span>
+          <span>
+            {weekOffset === 0 ? "this week" : weekOffset === 1 ? "next week" : `${fmtDay(monday)} week`}
+            {isDraft ? " · draft" : ` · ${Math.round(doneMin / 6) / 10} of ${Math.round(plannedMin / 6) / 10} h`}
+          </span>
+          <span className="coach-weeknav">
+            <button className="d-btn" onClick={() => { setWeekOffset(weekOffset - 1); setPicked(null); }} disabled={weekOffset <= -2} aria-label="Previous week">‹</button>
+            <button className="d-btn" onClick={() => { setWeekOffset(0); setPicked(null); }} disabled={weekOffset === 0}>today</button>
+            <button className="d-btn" onClick={() => { setWeekOffset(weekOffset + 1); setPicked(null); }} disabled={weekOffset >= 6} aria-label="Next week">›</button>
+          </span>
         </div>
+        {isDraft && weekSessions.length > 0 && <p className="coach-meta" style={{ margin: "0 0 8px" }}>Rough shape only: which days you swim, run, bike and lift. The exact sessions are written the Sunday before.</p>}
+        {weekSessions.length === 0 && <div className="empty-state"><p>Nothing planned this week yet.</p></div>}
         <div className="school-week">
           {DOW.map((d, i) => {
             const date = addDays(monday, i);
             return (
               <div key={d}>
-                <div className={`school-day${date === today ? " today" : ""}`}>{d}</div>
-                {sessions.filter((s) => s.date === date).map((s) => (
+                <div className={`school-day${date === today ? " today" : ""}`}>{d} {Number(date.slice(8))}</div>
+                {weekSessions.filter((s) => s.date === date).map((s) => (
                   <button
                     key={s.id}
                     className={`cal-chip coach-chip${picked === s.id ? " on" : ""}`}

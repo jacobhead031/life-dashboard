@@ -103,6 +103,7 @@ tri_message: id, user_id, role (athlete|coach), channel, content, session_id
 health_day (+): target_carbs_g, target_protein_g, ctl, atl
 ```
 - Design: `docs/superpowers/specs/2026-10-15-tri-coach-design.md`. The Python agents in `~/health-coach` (`tri_*.py`) write with the service key and an explicit `user_id`; the tab reads/writes via RLS.
+- Weekly Builder drafts 4 weeks ahead (`AHEAD_WEEKS`); only next week is pushed to the watch and emailed, the rest are rebuilt every Sunday.
 - **Intervals.icu is the training hub.** Planned sessions are pushed as events with `external_id = tri_session.id` (bulk upsert, idempotent); completed activities come back from Intervals (Garmin/Zwift truth), never from WHOOP. `health_day` doubles as whoop_daily + nutrition_daily: `push_health.py` must never send calorie columns or `null`s, because calories are typed in the tab.
 - Tests and races are `tri_session` rows (`sport = test|race`); pool slots live on the profile. Seed: `~/health-coach/tri_season.py seed`.
 - **`/coach` tab** (`app/coach/`): Today (Done/Skipped/Move + calories), week strip, season, check-in with push-to-talk (Web Speech API, no key), gear. Skipped deletes the Intervals event and Move re-dates it (`lib/intervals.ts`, needs `INTERVALS_API_KEY` + `INTERVALS_ATHLETE_ID` in Vercel; without them the tab is DB-only and says so). A move sets `adjusted_reason = "moved from …"`, which the Sunday rebuild respects. PWA: `app/manifest.ts` starts on `/coach`; `proxy.ts` lets `manifest.webmanifest` through.

@@ -18,7 +18,7 @@ export default async function CoachPage() {
     await Promise.all([
       supabase.from("tri_profile").select("*").maybeSingle(),
       supabase.from("tri_phase").select("*").order("start_on"),
-      supabase.from("tri_session").select("*").gte("date", monday).lte("date", addDays(monday, 6)).order("date").order("slot"),
+      supabase.from("tri_session").select("*").gte("date", addDays(monday, -14)).lte("date", addDays(monday, 48)).order("date").order("slot"),
       supabase.from("tri_session").select("*").in("sport", ["test", "race"]).order("date"),
       supabase.from("health_day").select("*").gte("date", addDays(today, -28)).lte("date", today).order("date"),
       supabase.from("tri_checkin").select("*").order("created_at", { ascending: false }).limit(7),
