@@ -15,6 +15,13 @@ const SPORT_ICON: Record<string, string> = {
   swim: "🏊", bike: "🚴", run: "🏃", brick: "🚴🏃", strength: "🏋️", hockey: "🏒", mobility: "🧘", test: "⏱", race: "🏁", rest: "😴",
 };
 const GEAR_STATUSES = ["need", "shopping", "ordered", "have"] as const;
+// Goal splits from the build spec (sub-5:45); re-evaluated at each test checkpoint.
+const GOAL_SPLITS = [
+  { leg: "swim 1.9 km", time: "0:35", needs: "~2:15 /100 m + current" },
+  { leg: "T1 + T2", time: "0:10", needs: "practised, spread-out venue" },
+  { leg: "bike 90 km", time: "2:58", needs: "~30 km/h at 70-78% FTP" },
+  { leg: "run 21.1 km", time: "2:02", needs: "~5:47 /km off the bike" },
+];
 
 function hms(s: number) {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60);
@@ -216,7 +223,17 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
           <div className="coach-season">
             <div>
               <div className="stat-num">{daysToRace}</div>
-              <div className="stat-sub">days to Maine · {fmtDay(profile.race_date)} · goal {hms(profile.goal_s)}</div>
+              <div className="stat-sub">days to Maine · {fmtDay(profile.race_date)}</div>
+              <p className="coach-goal">
+                <strong>Goal {hms(profile.goal_s)}</strong>
+                {profile.floor_s && <span className="coach-meta"> · floor {hms(profile.floor_s)}</span>}
+                {profile.stretch_s && <span className="coach-meta"> · stretch {hms(profile.stretch_s)}</span>}
+              </p>
+              <div className="coach-splits">
+                {GOAL_SPLITS.map((g) => (
+                  <div key={g.leg}><dt>{g.leg}</dt><dd>{g.time}</dd><span className="coach-meta">{g.needs}</span></div>
+                ))}
+              </div>
               {phase && <p className="coach-phase"><strong>{phase.name}</strong> · {fmtDay(phase.start_on)} to {fmtDay(phase.end_on)}<br /><span className="coach-meta">{phase.focus}</span></p>}
               <dl className="coach-zones">
                 <div><dt>FTP</dt><dd>{profile.ftp_watts ? `${profile.ftp_watts} W` : "test Nov 7"}</dd></div>

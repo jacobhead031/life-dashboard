@@ -2285,3 +2285,9 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-tests tr.past td { opacity: .5; }
 .coach-tests tr { --chip: var(--muted-2); }
 @media (max-width: 640px) { .coach-season { grid-template-columns: 1fr; } }
+.coach-goal { margin: 10px 0 0; font-size: 15px; }
+.coach-splits { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+.coach-splits div { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; display: flex; flex-direction: column; gap: 2px; }
+.coach-splits dt { font-family: var(--font-space-mono), monospace; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); }
+.coach-splits dd { margin: 0; font-family: var(--font-space-grotesk), sans-serif; font-size: 20px; line-height: 1.1; }
+.coach-splits .coach-meta { font-size: 11.5px; }
