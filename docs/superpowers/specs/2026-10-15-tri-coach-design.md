@@ -7,7 +7,8 @@ Extends `~/health-coach` (Python, launchd, `claude -p`) and this dashboard (Next
 - **Hybrid LLM.** Scheduled agents stay Python + `claude -p` on the Mac. Only the Coach tab chat uses the Anthropic API from Vercel (`ANTHROPIC_API_KEY`).
 - **Voice is browser-native.** Web Speech API for speech-to-text, `speechSynthesis` for the reply. No paid providers.
 - **Intervals.icu is the training hub.** Completed activities, pairing to planned workouts, and the fitness trend (CTL/ATL) come from Intervals. WHOOP stays recovery/sleep only, already in `health_day`. Planned workouts are pushed to Intervals with `external_id = tri_session.id` and bulk upsert, so re-pushing is idempotent.
-- **Email cap by construction.** Tri adds at most one new email a day. Daily Coach replaces the run-coach section inside the existing 07:00 email. Fuel targets ride inside the existing 20:00 calorie prompt. The weekly plan, review and gear line share one Sunday 18:00 email. "How'd that feel?" is the only standalone new email, at most once a day.
+- **Calories are entered in the tab, not by email (Jacob, Oct 16).** The 20:00 calorie prompt email and its reply parser are retired; the 20:00 job keeps `push_health.py`. The Coach tab's Today panel shows tomorrow's fuel targets and takes calories + macros for today or yesterday, written to `health_day` via RLS. `push_health.py` stops reading `calories.csv` and drops `None` values from its rows so the nightly sync never nulls a tab entry. The Sunday weigh-in email stays.
+- **Email cap by construction.** Tri adds at most one new email a day. Daily Coach replaces the run-coach section inside the existing 07:00 email, which also carries today's fuel targets. The weekly plan, review and gear line share one Sunday 18:00 email. "How'd that feel?" is the only standalone new email, at most once a day.
 - **No new scheduler cadence the Mac can't keep.** The Mac sleeps; launchd replays missed fires once at wake. Intervals polling runs inside the jobs that already fire (sync 09:00/13:00, a new 17:00 entry, daily 20:00). "1–2 h after a key session" becomes "the next poll".
 - **Rules in Python, prose in the model.** The Weekly Builder lays out the week deterministically (template, hockey days, pool slots, 3:1 cycle, ≤10% ramp against actual load). `claude -p` only writes title, purpose and interval structure per slot, returning JSON. A parse failure falls back to template text, never to an empty week.
 - **Season Planner is a script, not an agent.** Phases are date arithmetic from the race date. `tri_season.py seed` writes profile, phases and the test checkpoints once; `tri_season.py retest` updates zones from a test result. Goal-time changes are proposed in the Sunday email, never applied silently.
@@ -46,11 +47,11 @@ Seeds (`tri_season.py seed`): profile (race 2027-07-25, goal 5:45:00, floor 6:00
 | `tri_weekly.py` | skeleton → `run_claude` content → validate → upsert `tri_session` → `push_events` → Sunday 18:00 email (plan, last week's review, gear line, one question). `--dry-run`, `--selftest` for skeleton rules. |
 | `tri_daily.py` | `section(today) -> (subject, lines, foot)`. Green/yellow/red thresholds as module constants; yellow/red patches the session (`status='adjusted'`, `adjusted_reason`) and the Intervals event. |
 | `tri_checkin.py` | `poll()`: activities since yesterday → `tri_activity`, mark paired session done, wellness → `health_day.ctl/atl`; key sessions done with no check-in and no email today → send "How'd that feel? YYYY-MM-DD". `handle_reply(day, body)`: first 1–10 integer is RPE, "pain"/"hurt" sets `pain`, rest is `raw_text`. |
-| `tri_fuel.py` | `targets(tomorrow)`: g/kg from tomorrow's planned duration and sport (spec §9) and `health_day.weight`; upserts `health_day.target_*`; returns two lines for the 20:00 prompt. |
+| `tri_fuel.py` | `targets(day)`: g/kg from the day's planned duration and sport (spec §9) and `health_day.weight`; upserts `health_day.target_*`; returns two lines for the 07:00 email. |
 
 Hooks into existing code:
 - `run_coach.py run_brief` (lines 496–503): when `week_for()` is None, use `tri_daily.section(today)` instead of the "School today" stub. Tri counts as content for the early return at line 499.
-- `coach_email.py _log_replies`: one more tuple (`"How'd that feel?"`, date regex, done-dates from `tri_checkin`, `tri_checkin.handle_reply`). `replies` and `daily` commands call `tri_checkin.poll()` first. `send_daily_prompt(extra_lines=())` takes the fuel lines.
+- `coach_email.py _log_replies`: one more tuple (`"How'd that feel?"`, date regex, done-dates from `tri_checkin`, `tri_checkin.handle_reply`). `replies` and `daily` commands call `tri_checkin.poll()` first. `daily` no longer sends the calorie prompt (command kept for `push_health`); the `Calories for` tuple leaves `_log_replies`.
 - `install.sh`: `make_plist tri-weekly` Sunday 18:00; add 17:00 to `day_syncs`. `watchdog.py CHECKS` gains `tri-weekly.log` / `"Sent: "`.
 
 Guardrails live in `tri_weekly.validate()`: swims only in pool slots, no hard run the morning after hockey, no heavy legs within 24 h of a key run or long ride, long ride +10–15 min/week, run volume ≤ +10%/week, every 4th week and exam weeks (Dec, Apr) 60–70% volume, week total ≤ last week +10% unless the last weekly check-in said "good".
@@ -85,7 +86,7 @@ Guardrails live in `tri_weekly.validate()`: swims only in pool slots, no hard ru
 | 6 | `tri_checkin.py` + reply handler + 17:00 sync | Reply "7, legs heavy" lands in `tri_checkin` by the next sync; a key session gets its email |
 | 7 | Coach tab panels 1–5, PWA | Skipped removes the Garmin workout; Move changes its date; installable on the phone |
 | 8 | Chat + voice | "What's today?" answers from real data; push-to-talk fills the check-in on iOS Safari; "move Thursday's run to Friday" moves it |
-| 9 | `tri_fuel.py` + gear line | 20:00 email carries tomorrow's targets; Sunday email lists gear due within 30 days |
+| 9 | `tri_fuel.py`, calorie entry in the tab, gear line | 07:00 email and Today panel show targets; a calorie entry typed in the tab survives the nightly sync; Sunday email lists gear due within 30 days |
 | 10 | Shadow week with `INTERVALS_PUSH=0` and `[shadow]` subjects | Jacob approves; flip both and go live Nov 2 |
 
 Deferred: streaming chat, offline service worker, home-page card, Garmin pace targets (Intervals doesn't export them yet), a second shadow inbox.
