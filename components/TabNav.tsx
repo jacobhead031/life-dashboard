@@ -9,14 +9,14 @@ export function TabNav({ active }: { active: "dashboard" | "school" | "projects"
       <Link href="/school" className={`tab-link${active === "school" ? " active" : ""}`}>
         School
       </Link>
+      <Link href="/coach" className={`tab-link${active === "coach" ? " active" : ""}`}>
+        Coach
+      </Link>
       <Link href="/notes" className={`tab-link${active === "projects" ? " active" : ""}`}>
         Projects
       </Link>
       <Link href="/health" className={`tab-link${active === "health" ? " active" : ""}`}>
         Health
-      </Link>
-      <Link href="/coach" className={`tab-link${active === "coach" ? " active" : ""}`}>
-        Coach
       </Link>
       <Link href="/budget" className={`tab-link${active === "budget" ? " active" : ""}`}>
         Budget
