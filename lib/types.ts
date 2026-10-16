@@ -191,6 +191,10 @@ export type HealthDay = {
   fat: number | null;
   carbs: number | null;
   weight: number | null;
+  target_carbs_g: number | null; // tri fuel agent
+  target_protein_g: number | null;
+  ctl: number | null; // fitness, from Intervals.icu wellness
+  atl: number | null; // fatigue
   updated_at: string;
 };
 
@@ -272,5 +276,115 @@ export type LifeMedia = {
   goal_id: string | null; // …or of a goal itself; exactly one is set
   path: string; // goal-photos bucket: <user_id>/<entry_id or goal_id>/<ts>-<filename>
   kind: "image" | "video";
+  created_at: string;
+};
+
+// ── Triathlon coach (/coach) ──────────────────────────────────
+export type TriPoolSlot = { pool: string; weekday: number; start: string; end: string; valid_from: string; valid_to: string };
+
+export type TriProfile = {
+  user_id: string;
+  race_date: string; // YYYY-MM-DD
+  goal_s: number; // seconds
+  floor_s: number | null;
+  stretch_s: number | null;
+  ftp_watts: number | null;
+  css_s_100m: number | null;
+  thr_run_s_km: number | null;
+  lthr: number | null;
+  max_hr: number | null;
+  weight_kg: number | null;
+  hockey_days: number[]; // ISO weekday 1=Mon..7=Sun
+  pool_slots: TriPoolSlot[];
+  updated_at: string;
+};
+
+export type TriPhase = {
+  id: string;
+  user_id: string;
+  name: string;
+  start_on: string;
+  end_on: string;
+  focus: string | null;
+  hours_min: number | null;
+  hours_max: number | null;
+};
+
+export type TriSport = "swim" | "bike" | "run" | "brick" | "strength" | "hockey" | "mobility" | "test" | "race" | "rest";
+export type TriSessionStatus = "planned" | "adjusted" | "done" | "partial" | "skipped" | "moved";
+
+export type TriSession = {
+  id: string;
+  user_id: string;
+  date: string;
+  slot: "am" | "pm";
+  sport: TriSport;
+  title: string;
+  purpose: string | null;
+  duration_min: number | null;
+  structure: string | null; // Intervals.icu workout text
+  is_key: boolean;
+  location: string | null;
+  status: TriSessionStatus;
+  adjusted_reason: string | null;
+  intervals_event_id: string | null;
+  created_by: "season" | "weekly" | "daily" | "user";
+  created_at: string;
+  updated_at: string;
+};
+
+export type TriActivity = {
+  id: string;
+  user_id: string;
+  intervals_activity_id: string;
+  session_id: string | null;
+  date: string;
+  sport: string | null;
+  duration_s: number | null;
+  distance_m: number | null;
+  avg_hr: number | null;
+  avg_watts: number | null;
+  np_watts: number | null;
+  pace_s_km: number | null;
+  load: number | null;
+  created_at: string;
+};
+
+export type TriCheckin = {
+  id: string;
+  user_id: string;
+  session_id: string | null;
+  date: string;
+  kind: "post_session" | "post_hockey" | "weekly" | "adhoc";
+  channel: "email" | "tab" | "voice";
+  rpe: number | null;
+  legs: string | null;
+  sleep: string | null;
+  mood: string | null;
+  pain: boolean;
+  pain_where: string | null;
+  notes: string | null;
+  raw_text: string | null;
+  created_at: string;
+};
+
+export type TriGear = {
+  id: string;
+  user_id: string;
+  rank: number | null;
+  item: string;
+  area: string | null;
+  buy_by: string | null;
+  status: "have" | "shopping" | "need" | "ordered";
+  why: string | null;
+};
+
+export type TriMessage = {
+  id: string;
+  user_id: string;
+  role: "athlete" | "coach";
+  channel: "email" | "tab" | "voice";
+  content: string;
+  session_id: string | null;
   created_at: string;
 };

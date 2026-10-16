@@ -85,6 +85,27 @@ journal_log: user_id, date (pk on both);  user_settings.journal_start date
 - Seed: `lib/life-goals.json` via `seedLifeGoals` (skips slugs that already exist).
 - **Albums:** a `life_counter_entry` belongs to a counter (`counter` set) or to a count goal (`goal_id` set, e.g. a song), never both. `life_media` (`entry_id`, `path`, `kind` image|video) holds its photos and videos in the `goal-photos` bucket at `<user_id>/<entry_id>/<ts>-<filename>`. Adding a goal entry bumps `count_current`; deleting one drops it. `deleteCounterEntry` removes the album's storage objects first (storage doesn't cascade).
 
+### `tri_*` — triathlon coach (`/coach`)
+```sql
+tri_profile: user_id (pk), race_date, goal_s/floor_s/stretch_s int (seconds), ftp_watts, css_s_100m,
+  thr_run_s_km, lthr, max_hr, weight_kg, hockey_days int[] (ISO 1=Mon..7=Sun), pool_slots jsonb, updated_at
+tri_phase: id, user_id, name, start_on, end_on, focus, hours_min, hours_max
+tri_session: id, user_id, date, slot (am|pm), sport (swim|bike|run|brick|strength|hockey|mobility|test|race|rest),
+  title, purpose, duration_min, structure text (Intervals.icu workout text), is_key, location,
+  status (planned|adjusted|done|partial|skipped|moved), adjusted_reason, intervals_event_id,
+  created_by (season|weekly|daily|user), created_at, updated_at
+tri_activity: id, user_id, intervals_activity_id (unique per user), session_id (fk, set null), date, sport,
+  duration_s, distance_m, avg_hr, avg_watts, np_watts, pace_s_km, load, raw jsonb
+tri_checkin: id, user_id, session_id, date, kind (post_session|post_hockey|weekly|adhoc), channel (email|tab|voice),
+  rpe 1-10, legs, sleep, mood, pain bool, pain_where, notes, raw_text
+tri_gear: id, user_id, rank, item, area, buy_by date, status (have|shopping|need|ordered), why
+tri_message: id, user_id, role (athlete|coach), channel, content, session_id
+health_day (+): target_carbs_g, target_protein_g, ctl, atl
+```
+- Design: `docs/superpowers/specs/2026-10-15-tri-coach-design.md`. The Python agents in `~/health-coach` (`tri_*.py`) write with the service key and an explicit `user_id`; the tab reads/writes via RLS.
+- **Intervals.icu is the training hub.** Planned sessions are pushed as events with `external_id = tri_session.id` (bulk upsert, idempotent); completed activities come back from Intervals (Garmin/Zwift truth), never from WHOOP. `health_day` doubles as whoop_daily + nutrition_daily: `push_health.py` must never send calorie columns or `null`s, because calories are typed in the tab.
+- Tests and races are `tri_session` rows (`sport = test|race`); pool slots live on the profile. Seed: `~/health-coach/tri_season.py seed`.
+
 ## Key rules
 
 - **`project_id IS NULL` on a note = inbox.** Unfiled is a state, not a place.
