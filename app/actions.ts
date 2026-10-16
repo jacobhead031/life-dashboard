@@ -6,7 +6,8 @@ import { HABIT_COLORS, todayStr } from "@/lib/utils";
 import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
 import { findCover } from "@/lib/unsplash";
 import lifeSeed from "@/lib/life-goals.json";
-import type { LifeGoal, LifeStep } from "@/lib/types";
+import type { LifeGoal, LifeStep, TriSessionStatus } from "@/lib/types";
+import { deleteEvent, moveEvent } from "@/lib/intervals";
 
 // ── Helpers ───────────────────────────────────────────────────
 
@@ -1148,4 +1149,84 @@ export async function setJournalStart(date: string | null) {
   const { supabase, user } = await authed();
   await ok(supabase.from("user_settings").upsert({ user_id: user.id, journal_start: date ? fmt(date, DATE, "Start date") : null }));
   revalidatePath("/");
+}
+
+// ── Coach (triathlon) ─────────────────────────────────────────
+// Rows are written by the ~/health-coach agents too; the tab only flips status,
+// logs check-ins and calories, and edits gear. Intervals.icu is told first so the
+// watch never disagrees with the dashboard.
+
+const TRI_STATUSES: TriSessionStatus[] = ["planned", "adjusted", "done", "partial", "skipped", "moved"];
+
+export async function setTriSessionStatus(id: string, status: TriSessionStatus, newDate?: string) {
+  const { supabase } = await authed();
+  if (!TRI_STATUSES.includes(status)) throw new Error("Unknown status");
+  const s = await ok(supabase.from("tri_session").select("id,date,intervals_event_id,adjusted_reason").eq("id", id).maybeSingle());
+  if (!s) throw new Error("Session not found");
+  const patch: Record<string, unknown> = { status };
+  if (status === "moved") {
+    const to = fmt(newDate ?? "", DATE, "New date");
+    if (s.intervals_event_id) await moveEvent(s.intervals_event_id, to);
+    Object.assign(patch, { date: to, status: "planned", adjusted_reason: `moved from ${s.date} by Jacob` });
+  } else if (status === "skipped" && s.intervals_event_id) {
+    await deleteEvent(s.intervals_event_id);
+    patch.intervals_event_id = null;
+  }
+  await ok(supabase.from("tri_session").update(patch).eq("id", id));
+  revalidatePath("/coach");
+}
+
+export async function addTriCheckin(data: {
+  date: string;
+  session_id?: string | null;
+  rpe: number | null;
+  legs: string | null;
+  sleep: string | null;
+  mood: string | null;
+  pain: boolean;
+  pain_where: string | null;
+  notes: string | null;
+  channel: "tab" | "voice";
+}) {
+  const { supabase, user } = await authed();
+  if (data.rpe != null && (!Number.isInteger(data.rpe) || data.rpe < 1 || data.rpe > 10)) throw new Error("Effort is 1-10");
+  await ok(supabase.from("tri_checkin").insert({
+    user_id: user.id,
+    date: fmt(data.date, DATE, "Date"),
+    session_id: data.session_id ?? null,
+    kind: "post_session",
+    channel: data.channel === "voice" ? "voice" : "tab",
+    rpe: data.rpe,
+    legs: cap(data.legs, "Legs", 40),
+    sleep: cap(data.sleep, "Sleep", 40),
+    mood: cap(data.mood, "Mood", 40),
+    pain: !!data.pain,
+    pain_where: cap(data.pain_where, "Pain", 200),
+    notes: cap(data.notes, "Notes", 2000),
+  }));
+  revalidatePath("/coach");
+}
+
+export async function setTriGearStatus(id: string, status: "have" | "shopping" | "need" | "ordered") {
+  const { supabase } = await authed();
+  if (!["have", "shopping", "need", "ordered"].includes(status)) throw new Error("Unknown status");
+  await ok(supabase.from("tri_gear").update({ status }).eq("id", id));
+  revalidatePath("/coach");
+}
+
+// Calories typed in the tab (the nightly email was retired Oct 2026). Upsert so a
+// day with WHOOP data already in health_day keeps it.
+export async function saveTriCalories(data: { date: string; calories: number | null; protein: number | null; carbs: number | null; fat: number | null }) {
+  const { supabase, user } = await authed();
+  const n = (v: number | null, label: string) => (v == null ? null : num(v, label, 0));
+  await ok(supabase.from("health_day").upsert({
+    user_id: user.id,
+    date: fmt(data.date, DATE, "Date"),
+    calories: n(data.calories, "Calories"),
+    protein: n(data.protein, "Protein"),
+    carbs: n(data.carbs, "Carbs"),
+    fat: n(data.fat, "Fat"),
+  }, { onConflict: "user_id,date" }));
+  revalidatePath("/coach");
+  revalidatePath("/health");
 }

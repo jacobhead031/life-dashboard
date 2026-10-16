@@ -4,7 +4,7 @@ import { useState } from "react";
 import type { HealthDay, HealthRecs } from "@/lib/types";
 
 /* WHOOP recovery bands: 67+ green, 34–66 yellow, <34 red */
-function recoveryColor(pct: number) {
+export function recoveryColor(pct: number) {
   if (pct >= 67) return "var(--green)";
   if (pct >= 34) return "var(--amber)";
   return "var(--coral)";
@@ -21,7 +21,7 @@ type Pt = { date: string; value: number };
 
 /* One-series sparkline: 2px line, last-point dot, min/max in muted ink,
    hover crosshair + tooltip. Identity comes from the card label, not color. */
-function Sparkline({
+export function Sparkline({
   points,
   color,
   format,

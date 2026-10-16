@@ -29,7 +29,11 @@ const cormorant = Cormorant_Garamond({
 export const metadata: Metadata = {
   title: "Life Dashboard",
   description: "Your day, at a glance.",
+  manifest: "/manifest.webmanifest",
+  appleWebApp: { capable: true, title: "Apex", statusBarStyle: "black-translucent" },
 };
+
+export const viewport = { themeColor: "#14161D" };
 
 export default function RootLayout({
   children,
