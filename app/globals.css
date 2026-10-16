@@ -2260,9 +2260,6 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-chip { display: block; width: 100%; text-align: left; border: 0; color: var(--text); cursor: pointer; font: inherit; }
 .coach-chip.on { box-shadow: inset 0 0 0 1px var(--chip); }
 .coach-phase { margin: 10px 0 0; font-size: 13.5px; }
-.coach-zones { margin: 8px 0 0; font-size: 12.5px; color: var(--muted); }
-.coach-tests { margin-top: 12px; font-size: 13px; }
-.coach-tests li { --chip: var(--muted-2); border-left: 2px solid var(--chip); padding-left: 8px; }
 .coach-checkin { display: flex; flex-direction: column; gap: 10px; }
 .rpe-row { display: flex; flex-wrap: wrap; gap: 6px; }
 .rpe-row .class-pill { --chip: var(--sky); min-width: 34px; text-align: center; padding: 5px 0; }
@@ -2275,3 +2272,16 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-gear td:first-child { width: 22px; }
 .coach-gear td:last-child { width: 108px; }
 .coach-gear tr.have td { opacity: .5; }
+
+.coach-season { display: grid; grid-template-columns: 1fr 1.4fr; gap: 20px; align-items: start; }
+.coach-zones { display: flex; flex-wrap: wrap; gap: 8px 22px; margin: 12px 0 0; }
+.coach-zones div { display: flex; flex-direction: column; gap: 2px; }
+.coach-zones dt { font-family: var(--font-space-mono), monospace; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); }
+.coach-zones dd { margin: 0; font-size: 14px; }
+.coach-tests { width: 100%; border-collapse: collapse; font-size: 13px; }
+.coach-tests td { padding: 7px 6px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.coach-tests td:first-child { white-space: nowrap; width: 92px; }
+.coach-tests td:last-child { text-align: right; white-space: nowrap; }
+.coach-tests tr.past td { opacity: .5; }
+.coach-tests tr { --chip: var(--muted-2); }
+@media (max-width: 640px) { .coach-season { grid-template-columns: 1fr; } }

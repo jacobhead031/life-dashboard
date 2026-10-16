@@ -153,9 +153,12 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
           className="coach-cal"
           onSubmit={(e) => {
             e.preventDefault();
-            const f = new FormData(e.currentTarget);
+            const form = e.currentTarget;
+            const f = new FormData(form);
             const n = (k: string) => (f.get(k) ? Number(f.get(k)) : null);
-            startTransition(() => saveTriCalories({ date: calDate, calories: n("calories"), protein: n("protein"), carbs: n("carbs"), fat: n("fat") }));
+            const data = { date: calDate, calories: n("calories"), protein: n("protein"), carbs: n("carbs"), fat: n("fat") };
+            form.reset();
+            startTransition(() => saveTriCalories(data));
           }}
         >
           <select value={calDate} onChange={(e) => setCalDate(e.target.value)} aria-label="Day">
@@ -163,13 +166,18 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
             <option value={addDays(today, -1)}>yesterday</option>
             <option value={addDays(today, -2)}>{fmtDay(addDays(today, -2))}</option>
           </select>
-          <input key={`c${calDate}`} name="calories" type="number" inputMode="numeric" placeholder="kcal" defaultValue={calRow?.calories ?? ""} />
+          <input name="calories" type="number" inputMode="numeric" placeholder="kcal" />
           <div className="coach-macros">
-            <input key={`p${calDate}`} name="protein" type="number" inputMode="numeric" placeholder="P g" defaultValue={calRow?.protein ?? ""} />
-            <input key={`b${calDate}`} name="carbs" type="number" inputMode="numeric" placeholder="C g" defaultValue={calRow?.carbs ?? ""} />
-            <input key={`f${calDate}`} name="fat" type="number" inputMode="numeric" placeholder="F g" defaultValue={calRow?.fat ?? ""} />
+            <input name="protein" type="number" inputMode="numeric" placeholder="P g" />
+            <input name="carbs" type="number" inputMode="numeric" placeholder="C g" />
+            <input name="fat" type="number" inputMode="numeric" placeholder="F g" />
           </div>
           <button className="btn primary" disabled={isPending}>Save</button>
+          <p className="coach-meta">
+            {calRow?.calories != null
+              ? `Logged: ${calRow.calories} kcal${calRow.protein != null ? ` · P ${calRow.protein}` : ""}${calRow.carbs != null ? ` · C ${calRow.carbs}` : ""}${calRow.fat != null ? ` · F ${calRow.fat}` : ""}`
+              : "Nothing logged for this day yet."}
+          </p>
         </form>
       </section>
 
@@ -202,24 +210,32 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
         {pickedSession && <SessionCard s={pickedSession} today={today} onStatus={status} busy={isPending} />}
       </section>
 
-      <section className="card span-3">
-        <div className="card-label"><span>season</span></div>
+      <section className="card span-6">
+        <div className="card-label"><span>season</span>{phase && <span className="card-nav">{phase.name}</span>}</div>
         {profile ? (
-          <>
-            <div className="stat-num">{daysToRace}</div>
-            <div className="stat-sub">days to Maine · {fmtDay(profile.race_date)} · goal {hms(profile.goal_s)}</div>
-            {phase && <p className="coach-phase"><strong>{phase.name}</strong> · {fmtDay(phase.start_on)} to {fmtDay(phase.end_on)}<br /><span className="coach-meta">{phase.focus}</span></p>}
-            <p className="coach-zones">
-              FTP {profile.ftp_watts ?? "—"} W · CSS {profile.css_s_100m ? `${Math.floor(profile.css_s_100m / 60)}:${String(profile.css_s_100m % 60).padStart(2, "0")}/100m` : "—"} · run threshold {profile.thr_run_s_km ? `${Math.floor(profile.thr_run_s_km / 60)}:${String(profile.thr_run_s_km % 60).padStart(2, "0")}/km` : "—"}
-            </p>
-            <ul className="rec-list coach-tests">
-              {tests.map((t) => (
-                <li key={t.id} style={{ "--chip": STATUS_COLOR[t.status] } as React.CSSProperties}>
-                  <span className="coach-meta">{fmtDay(t.date)}</span> {SPORT_ICON[t.sport]} {t.title}{t.status !== "planned" ? ` · ${t.status}` : ""}
-                </li>
-              ))}
-            </ul>
-          </>
+          <div className="coach-season">
+            <div>
+              <div className="stat-num">{daysToRace}</div>
+              <div className="stat-sub">days to Maine · {fmtDay(profile.race_date)} · goal {hms(profile.goal_s)}</div>
+              {phase && <p className="coach-phase"><strong>{phase.name}</strong> · {fmtDay(phase.start_on)} to {fmtDay(phase.end_on)}<br /><span className="coach-meta">{phase.focus}</span></p>}
+              <dl className="coach-zones">
+                <div><dt>FTP</dt><dd>{profile.ftp_watts ? `${profile.ftp_watts} W` : "test Nov 7"}</dd></div>
+                <div><dt>CSS</dt><dd>{profile.css_s_100m ? `${Math.floor(profile.css_s_100m / 60)}:${String(profile.css_s_100m % 60).padStart(2, "0")} /100 m` : "test Nov 6"}</dd></div>
+                <div><dt>Run threshold</dt><dd>{profile.thr_run_s_km ? `${Math.floor(profile.thr_run_s_km / 60)}:${String(profile.thr_run_s_km % 60).padStart(2, "0")} /km` : "from the half"}</dd></div>
+              </dl>
+            </div>
+            <table className="coach-tests">
+              <tbody>
+                {tests.map((t) => (
+                  <tr key={t.id} className={t.date < today ? "past" : ""} style={{ "--chip": STATUS_COLOR[t.status] } as React.CSSProperties}>
+                    <td className="coach-meta">{fmtDay(t.date)}</td>
+                    <td>{SPORT_ICON[t.sport]} {t.title}</td>
+                    <td className="coach-status">{t.status}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         ) : (
           <div className="empty-state"><p>No profile yet. Run <code>tri_season.py seed</code>.</p></div>
         )}
@@ -284,11 +300,11 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
         )}
       </section>
 
-      <section className="card span-3">
+      <section className="card span-6">
         <div className="card-label"><span>gear</span><span className="card-nav">{gear.filter((g) => g.status === "have").length}/{gear.length}</span></div>
         <table className="coach-gear">
           <tbody>
-            {gear.map((g) => (
+            {[...gear].sort((a, b) => Number(a.status === "have") - Number(b.status === "have") || (a.rank ?? 99) - (b.rank ?? 99)).map((g) => (
               <tr key={g.id} className={g.status === "have" ? "have" : ""}>
                 <td className="coach-meta">{g.rank ?? ""}</td>
                 <td>{g.item}{g.buy_by && <span className="cal-meta"> · by {new Date(`${g.buy_by}T12:00:00`).toLocaleDateString("en-US", { month: "short" })}</span>}</td>
