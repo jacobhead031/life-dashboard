@@ -195,6 +195,8 @@ export type HealthDay = {
   target_protein_g: number | null;
   ctl: number | null; // fitness, from Intervals.icu wellness
   atl: number | null; // fatigue
+  vo2max: number | null; // Garmin via Intervals.icu
+  steps: number | null;
   updated_at: string;
 };
 
@@ -347,6 +349,7 @@ export type TriActivity = {
   np_watts: number | null;
   pace_s_km: number | null;
   load: number | null;
+  raw: Record<string, unknown> | null;
   created_at: string;
 };
 

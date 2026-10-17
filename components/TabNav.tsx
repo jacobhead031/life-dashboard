@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export function TabNav({ active }: { active: "dashboard" | "school" | "projects" | "health" | "coach" | "budget" | "goals" }) {
+export function TabNav({ active }: { active: "dashboard" | "school" | "projects" | "health" | "coach" | "stats" | "budget" | "goals" }) {
   return (
     <nav className="tab-nav">
       <Link href="/" className={`tab-link${active === "dashboard" ? " active" : ""}`}>
@@ -11,6 +11,9 @@ export function TabNav({ active }: { active: "dashboard" | "school" | "projects"
       </Link>
       <Link href="/coach" className={`tab-link${active === "coach" ? " active" : ""}`}>
         Coach
+      </Link>
+      <Link href="/stats" className={`tab-link${active === "stats" ? " active" : ""}`}>
+        Stats
       </Link>
       <Link href="/notes" className={`tab-link${active === "projects" ? " active" : ""}`}>
         Projects

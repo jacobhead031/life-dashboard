@@ -77,7 +77,7 @@ export function Sparkline({
 }
 
 /* One-series bar strip: rounded data-ends, 2px gaps, hover tooltip. */
-function Bars({
+export function Bars({
   points,
   color,
   format,
