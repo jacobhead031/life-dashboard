@@ -126,7 +126,9 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
   // ── check-in form ──
   const [rpe, setRpe] = useState<number | null>(null);
   const [pain, setPain] = useState(false);
+  const [crowd, setCrowd] = useState<number | null>(null);
   const [notes, setNotes] = useState("");
+  const swamToday = todays.some((s) => s.sport === "swim");
   const dictation = useDictation((t) => setNotes((n) => (n ? `${n} ${t}` : t)));
   const [calDate, setCalDate] = useState(today);
   const calRow = health.find((h) => h.date === calDate) ?? null;
@@ -294,9 +296,9 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
             const data = {
               date: today, session_id: todays.find((s) => s.is_key)?.id ?? todays[0]?.id ?? null, rpe,
               legs: v("legs"), sleep: v("sleep"), mood: v("mood"), pain, pain_where: pain ? v("pain_where") : null,
-              notes: notes || null, channel: "tab" as const,
+              notes: notes || null, channel: "tab" as const, crowd: swamToday ? crowd : null,
             };
-            startTransition(async () => { await addTriCheckin(data); setRpe(null); setPain(false); setNotes(""); });
+            startTransition(async () => { await addTriCheckin(data); setRpe(null); setPain(false); setCrowd(null); setNotes(""); });
           }}
         >
           <div className="rpe-row" role="radiogroup" aria-label="Effort 1 to 10">
@@ -309,6 +311,14 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
             <div className="d-field"><label>sleep</label><select name="sleep" defaultValue=""><option value="">—</option><option>good</option><option>ok</option><option>bad</option></select></div>
             <div className="d-field"><label>mood</label><select name="mood" defaultValue=""><option value="">—</option><option>good</option><option>flat</option><option>stressed</option><option>great</option></select></div>
           </div>
+          {swamToday && (
+            <div className="rpe-row" role="radiogroup" aria-label="How crowded was the pool, 1 to 5">
+              <span className="coach-meta" style={{ alignSelf: "center" }}>pool crowd</span>
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button type="button" key={n} className={`class-pill${crowd === n ? " on" : ""}`} style={{ "--chip": "var(--amber)" } as React.CSSProperties} aria-pressed={crowd === n} onClick={() => setCrowd(n)}>{n}</button>
+              ))}
+            </div>
+          )}
           <label className="coach-pain"><input type="checkbox" checked={pain} onChange={(e) => setPain(e.target.checked)} /> pain</label>
           {pain && <input name="pain_where" placeholder="where, and what kind" />}
           <div className="coach-notes">
@@ -324,7 +334,7 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
         {checkins.length > 0 && (
           <ul className="rec-list coach-recent">
             {checkins.map((c) => (
-              <li key={c.id}><span className="coach-meta">{fmtDay(c.date)}</span> {c.rpe != null ? `RPE ${c.rpe}` : ""}{c.legs ? ` · legs ${c.legs}` : ""}{c.pain ? " · ⚠️ pain" : ""}{c.notes || c.raw_text ? ` · ${c.notes ?? c.raw_text}` : ""}</li>
+              <li key={c.id}><span className="coach-meta">{fmtDay(c.date)}</span> {c.rpe != null ? `RPE ${c.rpe}` : ""}{c.legs ? ` · legs ${c.legs}` : ""}{c.crowd != null ? ` · crowd ${c.crowd}/5` : ""}{c.pain ? " · ⚠️ pain" : ""}{c.notes || c.raw_text ? ` · ${c.notes ?? c.raw_text}` : ""}</li>
             ))}
           </ul>
         )}

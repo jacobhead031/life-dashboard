@@ -1187,9 +1187,11 @@ export async function addTriCheckin(data: {
   pain_where: string | null;
   notes: string | null;
   channel: "tab" | "voice";
+  crowd?: number | null;
 }) {
   const { supabase, user } = await authed();
   if (data.rpe != null && (!Number.isInteger(data.rpe) || data.rpe < 1 || data.rpe > 10)) throw new Error("Effort is 1-10");
+  if (data.crowd != null && (!Number.isInteger(data.crowd) || data.crowd < 1 || data.crowd > 5)) throw new Error("Crowd is 1-5");
   await ok(supabase.from("tri_checkin").insert({
     user_id: user.id,
     date: fmt(data.date, DATE, "Date"),
@@ -1203,6 +1205,7 @@ export async function addTriCheckin(data: {
     pain: !!data.pain,
     pain_where: cap(data.pain_where, "Pain", 200),
     notes: cap(data.notes, "Notes", 2000),
+    crowd: data.crowd ?? null,
   }));
   revalidatePath("/coach");
 }

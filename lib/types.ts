@@ -280,7 +280,7 @@ export type LifeMedia = {
 };
 
 // ── Triathlon coach (/coach) ──────────────────────────────────
-export type TriPoolSlot = { pool: string; weekday: number; start: string; end: string; valid_from: string; valid_to: string };
+export type TriPoolSlot = { pool: string; kind?: string; label?: string; weekday: number; start: string; end: string; valid_from: string; valid_to: string };
 
 export type TriProfile = {
   user_id: string;
@@ -365,6 +365,7 @@ export type TriCheckin = {
   pain_where: string | null;
   notes: string | null;
   raw_text: string | null;
+  crowd: number | null; // pool crowd 1-5 on swim days
   created_at: string;
 };
 
