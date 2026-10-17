@@ -100,12 +100,14 @@ tri_checkin: id, user_id, session_id, date, kind (post_session|post_hockey|weekl
   rpe 1-10, legs, sleep, mood, pain bool, pain_where, notes, raw_text
 tri_gear: id, user_id, rank, item, area, buy_by date, status (have|shopping|need|ordered), why
 tri_message: id, user_id, role (athlete|coach), channel, content, session_id
-health_day (+): target_carbs_g, target_protein_g, ctl, atl
+health_day (+): target_carbs_g, target_protein_g, ctl, atl, vo2max, steps (Intervals.icu wellness)
+tri_checkin (+): crowd int 1-5 (pool crowd on swim days)
 ```
 - Design: `docs/superpowers/specs/2026-10-15-tri-coach-design.md`. The Python agents in `~/health-coach` (`tri_*.py`) write with the service key and an explicit `user_id`; the tab reads/writes via RLS.
 - Weekly Builder drafts 4 weeks ahead (`AHEAD_WEEKS`); only next week is pushed to the watch and emailed, the rest are rebuilt every Sunday.
 - **Intervals.icu is the training hub.** Planned sessions are pushed as events with `external_id = tri_session.id` (bulk upsert, idempotent); completed activities come back from Intervals (Garmin/Zwift truth), never from WHOOP. `health_day` doubles as whoop_daily + nutrition_daily: `push_health.py` must never send calorie columns or `null`s, because calories are typed in the tab.
 - Tests and races are `tri_session` rows (`sport = test|race`); pool slots live on the profile. Seed: `~/health-coach/tri_season.py seed`.
+- **`/stats` tab** (`app/stats/`): headline numbers, 12-week time/load/mileage from `tri_activity`, bests, VO2 max/RHR/HRV/weight trends from `health_day`. Backfill history with `~/health-coach/tri_checkin.py backfill 365` once Garmin data is in Intervals.
 - **`/coach` tab** (`app/coach/`): Today (Done/Skipped/Move + calories), week strip, season, check-in with push-to-talk (Web Speech API, no key), gear. Skipped deletes the Intervals event and Move re-dates it (`lib/intervals.ts`, needs `INTERVALS_API_KEY` + `INTERVALS_ATHLETE_ID` in Vercel; without them the tab is DB-only and says so). A move sets `adjusted_reason = "moved from …"`, which the Sunday rebuild respects. PWA: `app/manifest.ts` starts on `/coach`; `proxy.ts` lets `manifest.webmanifest` through.
 
 ## Key rules
