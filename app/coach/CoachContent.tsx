@@ -147,7 +147,7 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
       {!syncOn && <p className="coach-notice">Watch sync is off: set INTERVALS_API_KEY and INTERVALS_ATHLETE_ID in Vercel. Buttons still update the dashboard.</p>}
 
       <section className="card span-4">
-        <div className="card-label"><span>today · {fmtDay(today)}</span>{isPending && <span className="card-nav">saving…</span>}</div>
+        <div className="card-label"><span>today · {fmtDay(today)}</span><Link href="/coach/lift" className="card-nav">{isPending ? "saving…" : "lift log →"}</Link></div>
         {todayHealth?.recovery_pct != null && (
           <p className="coach-recovery" style={{ "--chip": recoveryColor(todayHealth.recovery_pct) } as React.CSSProperties}>
             Recovery {Math.round(todayHealth.recovery_pct)}%
