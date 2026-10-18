@@ -1,7 +1,6 @@
 import type { TriLiftSet } from "./types";
 
 export type Exercise = { name: string; sets: number; reps: number; rpe: string; note: string; bodyweight: boolean };
-type SetDraft = { set_no: number; reps: string; weight_lb: string; rpe: string };
 
 const LOWER = /squat|deadlift|rdl|lunge/i;
 const BODYWEIGHT = /chin-up|pull-up|plank|dead bug|knee raise|pallof/i;
