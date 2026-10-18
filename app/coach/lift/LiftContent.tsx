@@ -12,8 +12,8 @@ function fmtDay(d: string) {
   return new Date(`${d}T12:00:00`).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
 }
 
-function ExerciseCard({ ex, date, sessionId, history, busy, onSave }: {
-  ex: Exercise; date: string; sessionId: string | null; history: TriLiftSet[]; busy: boolean;
+function ExerciseCard({ ex, date, history, busy, onSave }: {
+  ex: Exercise; date: string; history: TriLiftSet[]; busy: boolean;
   onSave: (exercise: string, sets: SetDraft[]) => void;
 }) {
   const mine = history.filter((h) => h.exercise === ex.name);
@@ -95,7 +95,7 @@ export function LiftContent({ date, today, sessions, history }: { date: string; 
         {session && session.date !== today && <p className="coach-meta">Logging against {fmtDay(session.date)}. {isPending ? "saving…" : ""}</p>}
         {exercises.length === 0 && <div className="empty-state"><p>No exercises to log. Strength sessions get their steps on the Sunday build.</p></div>}
         {exercises.map((ex) => (
-          <ExerciseCard key={ex.name + (session?.date ?? date)} ex={ex} date={session?.date ?? date} sessionId={session?.id ?? null} history={history} busy={isPending} onSave={save} />
+          <ExerciseCard key={ex.name + (session?.date ?? date)} ex={ex} date={session?.date ?? date} history={history} busy={isPending} onSave={save} />
         ))}
         {dayLogged.length > 0 && <p className="coach-meta" style={{ marginTop: 10 }}>{dayLogged.length} sets logged for this session.</p>}
       </section>
