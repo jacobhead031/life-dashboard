@@ -147,7 +147,7 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
       {!syncOn && <p className="coach-notice">Watch sync is off: set INTERVALS_API_KEY and INTERVALS_ATHLETE_ID in Vercel. Buttons still update the dashboard.</p>}
 
       <section className="card span-4">
-        <div className="card-label"><span>today · {fmtDay(today)}</span><Link href="/coach/lift" className="card-nav">{isPending ? "saving…" : "lift log →"}</Link></div>
+        <div className="card-label"><span>today · {fmtDay(today)}</span>{isPending && <span className="card-nav">saving…</span>}</div>
         {todayHealth?.recovery_pct != null && (
           <p className="coach-recovery" style={{ "--chip": recoveryColor(todayHealth.recovery_pct) } as React.CSSProperties}>
             Recovery {Math.round(todayHealth.recovery_pct)}%
@@ -194,6 +194,24 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
               : "Nothing logged for this day yet."}
           </p>
         </form>
+      </section>
+
+      <section className="card span-6">
+        <div className="card-label"><span>lifts · {weekOffset === 0 ? "this week" : fmtDay(monday)}</span><Link href={`/coach/lift?week=${monday}`} className="card-nav">open lift log →</Link></div>
+        {weekSessions.filter((s) => s.sport === "strength").length === 0 ? (
+          <div className="empty-state"><p>No gym sessions this week.</p></div>
+        ) : (
+          <div className="coach-lifts">
+            {weekSessions.filter((s) => s.sport === "strength").map((s) => (
+              <Link key={s.id} href={`/coach/lift?week=${monday}#${s.date}`} className="coach-lift-row" style={{ "--chip": STATUS_COLOR[s.status] } as React.CSSProperties}>
+                <span className="coach-meta">{fmtDay(s.date)}</span>
+                <strong>{s.title}</strong>
+                <span className="coach-meta">{s.duration_min ? `${s.duration_min} min` : ""}{s.status !== "planned" ? ` · ${s.status}` : ""}</span>
+                <span className="d-btn">log weights →</span>
+              </Link>
+            ))}
+          </div>
+        )}
       </section>
 
       <section className="card span-6">

@@ -3,21 +3,22 @@ import { redirect } from "next/navigation";
 import { TabNav } from "@/components/TabNav";
 import { Greeting } from "@/components/Greeting";
 import { SignOutButton } from "@/components/SignOutButton";
-import { addDays, todayStr } from "@/lib/utils";
+import { addDays, todayStr, weekMonday } from "@/lib/utils";
 import { LiftContent } from "./LiftContent";
 
-// /coach/lift?date=YYYY-MM-DD — defaults to today. Shows that day's strength
-// session (or the next one) with last time's weights pre-filled.
-export default async function LiftPage({ searchParams }: { searchParams: Promise<{ date?: string }> }) {
+// /coach/lift?week=YYYY-MM-DD (a Monday) — every gym session of that week,
+// each exercise with last time's weights pre-filled. Defaults to this week.
+export default async function LiftPage({ searchParams }: { searchParams: Promise<{ week?: string; date?: string }> }) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { date: qs } = await searchParams;
+  const { week: qs, date: qd } = await searchParams;
   const today = todayStr();
-  const date = qs && /^\d{4}-\d{2}-\d{2}$/.test(qs) ? qs : today;
+  const anchor = [qs, qd].find((v) => v && /^\d{4}-\d{2}-\d{2}$/.test(v)) ?? today;
+  const monday = weekMonday(anchor);
   const [{ data: sessions }, { data: history }] = await Promise.all([
-    supabase.from("tri_session").select("*").eq("sport", "strength").gte("date", addDays(date, -14)).lte("date", addDays(date, 14)).order("date"),
+    supabase.from("tri_session").select("*").eq("sport", "strength").gte("date", monday).lte("date", addDays(monday, 6)).order("date"),
     supabase.from("tri_lift_log").select("*").gte("date", addDays(today, -120)).order("date", { ascending: false }).order("set_no"),
   ]);
 
@@ -29,7 +30,7 @@ export default async function LiftPage({ searchParams }: { searchParams: Promise
       </div>
       <div className="rule" />
       <TabNav active="coach" />
-      <LiftContent date={date} today={today} sessions={sessions ?? []} history={history ?? []} />
+      <LiftContent monday={monday} today={today} sessions={sessions ?? []} history={history ?? []} />
     </div>
   );
 }

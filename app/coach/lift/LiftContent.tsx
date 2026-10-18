@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useState, useTransition } from "react";
 import { saveLiftSets } from "@/app/actions";
 import type { TriLiftSet, TriSession } from "@/lib/types";
+import { addDays, weekMonday } from "@/lib/utils";
 import { parseExercises, suggest, type Exercise } from "@/lib/lifts";
 
 type SetDraft = { set_no: number; reps: string; weight_lb: string; rpe: string };
@@ -64,41 +65,56 @@ function ExerciseCard({ ex, date, history, busy, onSave }: {
   );
 }
 
-export function LiftContent({ date, today, sessions, history }: { date: string; today: string; sessions: TriSession[]; history: TriLiftSet[] }) {
+export function LiftContent({ monday, today, sessions, history }: { monday: string; today: string; sessions: TriSession[]; history: TriLiftSet[] }) {
   const [isPending, startTransition] = useTransition();
-  const session = sessions.find((s) => s.date === date) ?? sessions.find((s) => s.date >= date) ?? null;
-  const exercises = parseExercises(session?.structure ?? null);
-  const dayLogged = history.filter((h) => h.date === (session?.date ?? date));
+  const thisMonday = weekMonday(today);
   const recentDays = [...new Set(history.map((h) => h.date))].slice(0, 6);
 
-  function save(exercise: string, sets: SetDraft[]) {
-    startTransition(() =>
-      saveLiftSets({
-        date: session?.date ?? date, session_id: session?.id ?? null, exercise,
-        sets: sets.map((s) => ({ set_no: s.set_no, reps: s.reps === "" ? null : Number(s.reps), weight_lb: s.weight_lb === "" ? null : Number(s.weight_lb), rpe: s.rpe === "" ? null : Number(s.rpe) })),
-      }),
-    );
+  function saveFor(session: TriSession) {
+    return (exercise: string, sets: SetDraft[]) =>
+      startTransition(() =>
+        saveLiftSets({
+          date: session.date, session_id: session.id, exercise,
+          sets: sets.map((s) => ({ set_no: s.set_no, reps: s.reps === "" ? null : Number(s.reps), weight_lb: s.weight_lb === "" ? null : Number(s.weight_lb), rpe: s.rpe === "" ? null : Number(s.rpe) })),
+        }),
+      );
   }
 
   return (
     <div className="grid-bento">
-      <section className="card span-6">
+      <section className="card span-6" style={{ paddingBottom: 12 }}>
         <div className="card-label">
-          <span>{session ? `${session.title} · ${fmtDay(session.date)}` : "no strength session near this date"}</span>
+          <span>lifts · {monday === thisMonday ? "this week" : monday === addDays(thisMonday, 7) ? "next week" : `week of ${fmtDay(monday)}`}{isPending ? " · saving…" : ""}</span>
           <span className="coach-weeknav">
             <Link className="d-btn" href="/coach">← coach</Link>
-            {sessions.filter((s) => s.date < (session?.date ?? date)).slice(-1).map((s) => <Link key={s.id} className="d-btn" href={`/coach/lift?date=${s.date}`}>‹ {fmtDay(s.date)}</Link>)}
-            {sessions.filter((s) => s.date > (session?.date ?? date)).slice(0, 1).map((s) => <Link key={s.id} className="d-btn" href={`/coach/lift?date=${s.date}`}>{fmtDay(s.date)} ›</Link>)}
+            <Link className="d-btn" href={`/coach/lift?week=${addDays(monday, -7)}`} aria-label="Previous week">‹</Link>
+            <Link className="d-btn" href="/coach/lift">this week</Link>
+            <Link className="d-btn" href={`/coach/lift?week=${addDays(monday, 7)}`} aria-label="Next week">›</Link>
           </span>
         </div>
-        {session?.purpose && <p className="coach-why" style={{ marginBottom: 8 }}>{session.purpose}</p>}
-        {session && session.date !== today && <p className="coach-meta">Logging against {fmtDay(session.date)}. {isPending ? "saving…" : ""}</p>}
-        {exercises.length === 0 && <div className="empty-state"><p>No exercises to log. Strength sessions get their steps on the Sunday build.</p></div>}
-        {exercises.map((ex) => (
-          <ExerciseCard key={ex.name + (session?.date ?? date)} ex={ex} date={session?.date ?? date} history={history} busy={isPending} onSave={save} />
-        ))}
-        {dayLogged.length > 0 && <p className="coach-meta" style={{ marginTop: 10 }}>{dayLogged.length} sets logged for this session.</p>}
+        {sessions.length === 0 && <div className="empty-state"><p>No gym sessions this week.</p></div>}
+        {sessions.length > 0 && (
+          <p className="coach-meta">{sessions.map((s) => `${fmtDay(s.date)}: ${s.title}`).join(" · ")}. Weights in lb. Save each exercise; re-saving replaces that day&rsquo;s sets.</p>
+        )}
       </section>
+
+      {sessions.map((session) => {
+        const exercises = parseExercises(session.structure);
+        const logged = history.filter((h) => h.date === session.date).length;
+        return (
+          <section className="card span-6" key={session.id} id={session.date}>
+            <div className="card-label">
+              <span>{fmtDay(session.date)} · {session.title}{session.date === today ? " · today" : ""}</span>
+              <span className="card-nav">{logged ? `${logged} sets logged` : session.status}</span>
+            </div>
+            {session.purpose && <p className="coach-why" style={{ marginBottom: 8 }}>{session.purpose}</p>}
+            {exercises.length === 0 && <div className="empty-state"><p>No exercises on this session yet. They arrive with the Sunday build.</p></div>}
+            {exercises.map((ex) => (
+              <ExerciseCard key={ex.name + session.date} ex={ex} date={session.date} history={history} busy={isPending} onSave={saveFor(session)} />
+            ))}
+          </section>
+        );
+      })}
 
       {recentDays.length > 0 && (
         <section className="card span-6">
