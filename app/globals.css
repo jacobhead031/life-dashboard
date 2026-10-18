@@ -2294,3 +2294,8 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-weeknav { display: flex; gap: 6px; }
 .stats-table th { text-align: left; font-family: var(--font-space-mono), monospace; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); padding: 4px; font-weight: 400; }
 .stats-table td:first-child, .stats-table td:last-child { width: auto; }
+.lift-tip { margin: 6px 0 0; font-size: 12.5px; color: var(--amber); }
+.lift-sets { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; }
+.lift-row { display: grid; grid-template-columns: 34px 1fr 1fr 1fr; gap: 6px; align-items: center; }
+.lift-row input { font: inherit; font-size: 14px; color: var(--text); background: var(--base); border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; width: 100%; }
+.lift-head span { font-family: var(--font-space-mono), monospace; font-size: 10.5px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted-2); }

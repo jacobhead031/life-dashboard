@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useOptimistic, useRef, useState, useTransition } from "react";
 import { addTriCheckin, saveTriCalories, setTriGearStatus, setTriSessionStatus } from "@/app/actions";
 import type { HealthDay, TriCheckin, TriGear, TriPhase, TriProfile, TriSession, TriSessionStatus } from "@/lib/types";
@@ -78,6 +79,7 @@ function SessionCard({ s, today, onStatus, busy }: { s: TriSession; today: strin
       {s.adjusted_reason && <p className="coach-adjust">⚠️ {s.adjusted_reason}</p>}
       {s.sport !== "hockey" && s.sport !== "rest" && (
         <div className="coach-actions">
+          {s.sport === "strength" && <Link className="d-btn" href={`/coach/lift?date=${s.date}`}>Log lifts →</Link>}
           {!terminal && <button className="d-btn success" disabled={busy} onClick={() => onStatus(s.id, "done")}>Done</button>}
           {!terminal && <button className="d-btn danger" disabled={busy} onClick={() => onStatus(s.id, "skipped")}>Skipped</button>}
           {terminal && <button className="d-btn" disabled={busy} onClick={() => onStatus(s.id, "planned")}>Undo</button>}

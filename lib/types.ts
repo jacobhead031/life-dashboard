@@ -392,3 +392,16 @@ export type TriMessage = {
   session_id: string | null;
   created_at: string;
 };
+
+export type TriLiftSet = {
+  id: string;
+  user_id: string;
+  date: string;
+  session_id: string | null;
+  exercise: string;
+  set_no: number;
+  reps: number | null;
+  weight_lb: number | null;
+  rpe: number | null;
+  created_at: string;
+};

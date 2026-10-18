@@ -1233,3 +1233,28 @@ export async function saveTriCalories(data: { date: string; calories: number | n
   revalidatePath("/coach");
   revalidatePath("/health");
 }
+
+// Lift log: re-saving a day's exercise replaces its sets, so edits are idempotent.
+export async function saveLiftSets(data: {
+  date: string;
+  session_id: string | null;
+  exercise: string;
+  sets: { set_no: number; reps: number | null; weight_lb: number | null; rpe: number | null }[];
+}) {
+  const { supabase, user } = await authed();
+  const date = fmt(data.date, DATE, "Date");
+  const exercise = str(data.exercise, "Exercise", 80);
+  if (!Array.isArray(data.sets) || data.sets.length > 12) throw new Error("Sets must be 1-12");
+  const rows = data.sets
+    .filter((st) => st.reps != null || st.weight_lb != null)
+    .map((st) => ({
+      user_id: user.id, date, session_id: data.session_id, exercise, set_no: num(st.set_no, "Set", 1),
+      reps: st.reps == null ? null : num(st.reps, "Reps", 0),
+      weight_lb: st.weight_lb == null ? null : num(st.weight_lb, "Weight", 0),
+      rpe: st.rpe == null ? null : num(st.rpe, "RPE", 1),
+    }));
+  await ok(supabase.from("tri_lift_log").delete().eq("date", date).eq("exercise", exercise));
+  if (rows.length) await ok(supabase.from("tri_lift_log").insert(rows));
+  revalidatePath("/coach/lift");
+  revalidatePath("/coach");
+}
