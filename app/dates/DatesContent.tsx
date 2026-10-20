@@ -86,7 +86,8 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
 
   const remove = (i: DateIdea) => {
     if (!confirm(`Delete "${i.title}"? Photos go with it.`)) return;
-    setOpenId(null);
+    // close() fires onClose, which clears openId; clearing openId alone leaves the empty modal up.
+    dialog.current?.close();
     startTransition(async () => { await deleteDateIdea(i.id); });
   };
   const toggleDone = (i: DateIdea, on: boolean) => update({ id: i.id, done_on: on ? today : null }, () => setDateDone(i.id, on));
