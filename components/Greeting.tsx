@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-export function Greeting() {
+export function Greeting({ name = "Jacob" }: { name?: string }) {
   const [greeting, setGreeting] = useState("good morning");
   const [dateStr, setDateStr] = useState("");
 
@@ -25,7 +25,7 @@ export function Greeting() {
     <div style={{ display: "flex", alignItems: "baseline", gap: "16px", flex: 1 }}>
       <div className="greeting">
         {greeting},{" "}
-        <span className="name">Jacob</span>
+        <span className="name">{name}</span>
       </div>
       {dateStr && <div className="date-str">{dateStr}</div>}
     </div>

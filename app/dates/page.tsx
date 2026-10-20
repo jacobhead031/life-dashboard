@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { TabNav } from "@/components/TabNav";
 import { Greeting } from "@/components/Greeting";
 import { SignOutButton } from "@/components/SignOutButton";
-import { todayStr } from "@/lib/utils";
+import { isGuest, todayStr } from "@/lib/utils";
 import type { DateIdea, DateMedia, DateScore } from "@/lib/types";
 import { DatesContent } from "./DatesContent";
 
@@ -26,11 +26,11 @@ export default async function DatesPage() {
   return (
     <div className="wrap">
       <div className="top">
-        <Greeting />
+        <Greeting name={isGuest(user.email) ? "you two" : "Jacob"} />
         <SignOutButton />
       </div>
       <div className="rule" />
-      <TabNav active="dates" />
+      <TabNav active="dates" guest={isGuest(user.email)} />
       <DatesContent
         ideas={(ideas ?? []) as DateIdea[]}
         scores={(scores ?? []) as DateScore[]}

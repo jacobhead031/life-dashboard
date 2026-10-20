@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-export function TabNav({ active }: { active: "dashboard" | "school" | "projects" | "health" | "coach" | "stats" | "budget" | "goals" | "dates" }) {
+export function TabNav({ active, guest = false }: { active: "dashboard" | "school" | "projects" | "health" | "coach" | "stats" | "budget" | "goals" | "dates"; guest?: boolean }) {
+  if (guest) return null; // the partner only has /dates, so there is nothing to switch between
   return (
     <nav className="tab-nav">
       <Link href="/" className={`tab-link${active === "dashboard" ? " active" : ""}`}>

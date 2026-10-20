@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { isGuest } from "@/lib/utils";
 
 export async function proxy(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request });
@@ -38,10 +39,17 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  // Redirect logged-in users away from login page
+  // Redirect logged-in users away from login page; a guest's home is /dates.
   if (user && isLoginRoute) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = isGuest(user.email) ? "/dates" : "/";
+    return NextResponse.redirect(url);
+  }
+
+  // A guest only gets the shared dates list, never the rest of the dashboard.
+  if (user && isGuest(user.email) && !request.nextUrl.pathname.startsWith("/dates")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dates";
     return NextResponse.redirect(url);
   }
 

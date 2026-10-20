@@ -1,5 +1,9 @@
 import type { RecurringDate } from "./types";
 
+// The dashboard is mine; anyone else who signs in (the partner on /dates) only gets that tab.
+export const OWNER_EMAIL = "jacobhead031@gmail.com";
+export const isGuest = (email: string | undefined) => email !== OWNER_EMAIL;
+
 // ── Dates ────────────────────────────────────────────────────
 // Every "today" in the app goes through todayStr(). The server runs in UTC, so
 // new Date().toISOString() is already tomorrow from 8pm Eastern.
