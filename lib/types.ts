@@ -405,3 +405,37 @@ export type TriLiftSet = {
   rpe: number | null;
   created_at: string;
 };
+
+// ── Dates (/dates): a bucket list shared with user_settings.partner_id ────────
+export type DateCost = "free" | "$" | "$$" | "$$$";
+export type DateDuration = "1h" | "evening" | "half day" | "full day";
+
+export type DateIdea = {
+  id: string;
+  user_id: string; // who added it; the partner sees it too
+  title: string;
+  note: string | null;
+  url: string | null;
+  category: string;
+  cost: DateCost;
+  duration: DateDuration;
+  event_on: string | null; // YYYY-MM-DD; null = anytime
+  event_until: string | null;
+  source: "manual" | "seed" | "weekly";
+  want_more: boolean;
+  position: number;
+  done_on: string | null;
+  review: string | null;
+  created_at: string;
+};
+
+export type DateScore = { idea_id: string; user_id: string; score: number };
+
+export type DateMedia = {
+  id: string;
+  idea_id: string;
+  user_id: string;
+  path: string; // date-photos bucket: <idea_id>/<ts>-<filename>
+  kind: "image" | "video";
+  created_at: string;
+};

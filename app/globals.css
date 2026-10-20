@@ -2303,3 +2303,33 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-lift-row { --chip: var(--muted-2); display: grid; grid-template-columns: 90px 1fr auto auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--line); border-left: 3px solid var(--chip); border-radius: 10px; color: var(--text); text-decoration: none; font-size: 14px; }
 .coach-lift-row:hover { background: rgba(255,255,255,.03); }
 @media (max-width: 640px) { .coach-lift-row { grid-template-columns: 1fr auto; } .coach-lift-row .coach-meta:first-child { grid-column: 1 / -1; } }
+
+/* ─── Dates (/dates): the shared bucket list, same room as /life ─── */
+.dates-filters { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 18px 0 22px; }
+.dates-seg { display: flex; flex-wrap: wrap; gap: 4px; }
+.dates-seg button {
+  font-family: var(--font-space-mono), monospace; font-size: 11px; letter-spacing: .5px;
+  background: none; border: 1px solid var(--seam); color: var(--dust); border-radius: 999px; padding: 4px 10px; cursor: pointer;
+}
+.dates-seg button.on, .dates-seg button[aria-selected="true"] { border-color: var(--ochre); color: var(--ochre); }
+.dates-row { display: flex; align-items: flex-start; gap: 10px; padding: 9px 0; border-bottom: 1px dashed rgba(58,44,34,.9); }
+.dates-row .todo-check { margin-top: 3px; accent-color: var(--ochre); }
+.dates-rank { font-family: var(--font-display), Georgia, serif; font-size: 20px; color: var(--ochre); width: 22px; text-align: right; line-height: 1.1; }
+.dates-title { flex: 1; min-width: 0; background: none; border: none; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; display: flex; flex-direction: column; gap: 4px; font-size: 14.5px; }
+.dates-title:hover > span:first-child { color: var(--ochre); }
+.dates-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.dates-chip { font-family: var(--font-space-mono), monospace; font-size: 10px; letter-spacing: .5px; color: var(--dust); border: 1px solid var(--seam); border-radius: 4px; padding: 1px 5px; }
+.dates-chip.when { color: var(--ochre); border-color: rgba(217,164,65,.35); }
+.dates-star { background: none; border: none; color: var(--seam); font-size: 18px; cursor: pointer; padding: 0 2px; line-height: 1; }
+.dates-star.on, .dates-star:hover { color: var(--ochre); }
+.dates-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.dates-edit { display: flex; flex-direction: column; gap: 12px; }
+.dates-note { color: var(--dust); font-size: 14.5px; line-height: 1.5; white-space: pre-wrap; }
+.dates-link { color: var(--ochre); font-size: 13px; text-decoration: none; }
+.dates-link:hover { text-decoration: underline; }
+.dates-score-row { display: flex; align-items: center; gap: 10px; font-size: 14px; color: var(--dust); }
+.dates-score-row select { background: rgba(0,0,0,.3); border: 1px solid var(--seam); color: var(--bone); border-radius: 8px; padding: 4px 8px; font: inherit; }
+.dates-score { font-family: var(--font-display), Georgia, serif; font-size: 20px; color: var(--bone); }
+.dates .add-panel { margin-bottom: 18px; display: flex; flex-direction: column; gap: 12px; }
+.life-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }
+.life-head .life-title { margin-bottom: 0; }

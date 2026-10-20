@@ -6,6 +6,7 @@ import { HABIT_COLORS, todayStr } from "@/lib/utils";
 import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
 import { findCover } from "@/lib/unsplash";
 import lifeSeed from "@/lib/life-goals.json";
+import dateSeed from "@/lib/date-ideas.json";
 import type { LifeGoal, LifeStep, TriSessionStatus } from "@/lib/types";
 import { deleteEvent, moveEvent } from "@/lib/intervals";
 
@@ -1257,4 +1258,113 @@ export async function saveLiftSets(data: {
   if (rows.length) await ok(supabase.from("tri_lift_log").insert(rows));
   revalidatePath("/coach/lift");
   revalidatePath("/coach");
+}
+
+// ── Dates ─────────────────────────────────────────────────────
+// Shared with the partner in user_settings.partner_id; RLS (shared_with_me) does the sharing.
+
+const DATE_COSTS = ["free", "$", "$$", "$$$"];
+const DATE_DURATIONS = ["1h", "evening", "half day", "full day"];
+
+export type DateIdeaEdit = {
+  title?: string; note?: string | null; url?: string | null; category?: string;
+  cost?: string; duration?: string; event_on?: string | null; event_until?: string | null; want_more?: boolean;
+};
+
+function dateIdeaFields(f: DateIdeaEdit) {
+  const row: Record<string, unknown> = {};
+  if (f.title !== undefined) row.title = str(f.title, "Title", 200);
+  if (f.note !== undefined) row.note = cap(f.note, "Note", 2000)?.trim() || null;
+  if (f.url !== undefined) row.url = f.url && /^https?:\/\/\S{1,900}$/.test(f.url.trim()) ? f.url.trim() : null;
+  if (f.category !== undefined) row.category = str(f.category, "Category", 30).toLowerCase();
+  if (f.cost !== undefined) { if (!DATE_COSTS.includes(f.cost)) throw new Error("Cost is not valid"); row.cost = f.cost; }
+  if (f.duration !== undefined) { if (!DATE_DURATIONS.includes(f.duration)) throw new Error("Time is not valid"); row.duration = f.duration; }
+  if (f.event_on !== undefined) row.event_on = f.event_on ? fmt(f.event_on, DATE, "Date") : null;
+  if (f.event_until !== undefined) row.event_until = f.event_until ? fmt(f.event_until, DATE, "End date") : null;
+  if (f.want_more !== undefined) row.want_more = !!f.want_more;
+  return row;
+}
+
+// First-run import of lib/date-ideas.json; a no-op once the pair has any ideas.
+export async function seedDateIdeas() {
+  const { supabase, user } = await authed();
+  const existing = await ok(supabase.from("date_idea").select("id").limit(1));
+  if (existing?.length) return;
+  await ok(supabase.from("date_idea").insert((dateSeed as DateIdeaEdit[]).map((d, i) => ({ ...dateIdeaFields(d), user_id: user.id, source: "seed", position: i }))));
+  revalidatePath("/dates");
+}
+
+export async function addDateIdea(f: DateIdeaEdit) {
+  const { supabase, user } = await authed();
+  const top = await ok(supabase.from("date_idea").select("position").is("done_on", null).order("position").limit(1).maybeSingle());
+  await ok(supabase.from("date_idea").insert({ ...dateIdeaFields({ cost: "$", duration: "evening", category: "other", ...f }), user_id: user.id, position: (top?.position ?? 1) - 1 }));
+  revalidatePath("/dates");
+}
+
+export async function saveDateIdea(id: string, f: DateIdeaEdit) {
+  const { supabase } = await authed();
+  await ok(supabase.from("date_idea").update(dateIdeaFields(f)).eq("id", id));
+  revalidatePath("/dates");
+}
+
+export async function reorderDateIdea(id: string, position: number) {
+  const { supabase } = await authed();
+  await ok(supabase.from("date_idea").update({ position: num(position, "Position") }).eq("id", id));
+  revalidatePath("/dates");
+}
+
+// Done flips it into a scrapbook entry (photos, review, scores). Undone keeps them.
+export async function setDateDone(id: string, done: boolean) {
+  const { supabase } = await authed();
+  await ok(supabase.from("date_idea").update({ done_on: done ? todayStr() : null }).eq("id", id));
+  revalidatePath("/dates");
+}
+
+export async function saveDateReview(id: string, review: string) {
+  const { supabase } = await authed();
+  if (typeof review !== "string" || review.length > 20_000) throw new Error("Review must be under 20000 characters");
+  await ok(supabase.from("date_idea").update({ review: review.trim() || null }).eq("id", id));
+  revalidatePath("/dates");
+}
+
+// One score per person; null clears mine.
+export async function setDateScore(ideaId: string, score: number | null) {
+  const { supabase, user } = await authed();
+  if (score === null) {
+    await ok(supabase.from("date_score").delete().eq("idea_id", ideaId).eq("user_id", user.id));
+  } else {
+    if (!Number.isInteger(score) || score < 1 || score > 10) throw new Error("Score must be 1-10");
+    await ok(supabase.from("date_score").upsert({ idea_id: ideaId, user_id: user.id, score }, { onConflict: "idea_id,user_id" }));
+  }
+  revalidatePath("/dates");
+}
+
+export async function deleteDateIdea(id: string) {
+  const { supabase } = await authed();
+  const idea = await ok(supabase.from("date_idea").select("date_media(path)").eq("id", id).maybeSingle());
+  if (!idea) return;
+  // Storage doesn't cascade: files first, so a failure leaves the idea visible and retryable.
+  const paths = (idea.date_media ?? []).map((m) => m.path);
+  if (paths.length) await ok(supabase.storage.from("date-photos").remove(paths));
+  await ok(supabase.from("date_idea").delete().eq("id", id));
+  revalidatePath("/dates");
+}
+
+// The browser uploads to the date-photos bucket, then records each file here.
+export async function recordDateMedia(ideaId: string, path: string, kind: string) {
+  const { supabase, user } = await authed();
+  if (typeof path !== "string" || !path.startsWith(`${ideaId}/`) || path.split("/").includes("..") || path.length > 1000) throw new Error("Invalid file path");
+  if (kind !== "image" && kind !== "video") throw new Error("Only photos and videos can go in an album");
+  await ok(supabase.from("date_media").insert({ idea_id: ideaId, user_id: user.id, path, kind }));
+  revalidatePath("/dates");
+}
+
+export async function deleteDateMedia(id: string) {
+  const { supabase } = await authed();
+  const media = await ok(supabase.from("date_media").select("path").eq("id", id).maybeSingle());
+  if (media) {
+    await ok(supabase.storage.from("date-photos").remove([media.path]));
+    await ok(supabase.from("date_media").delete().eq("id", id));
+  }
+  revalidatePath("/dates");
 }
