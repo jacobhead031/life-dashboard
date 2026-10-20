@@ -1269,7 +1269,7 @@ const DATE_DURATIONS = ["1h", "evening", "half day", "full day"];
 export type DateIdeaEdit = {
   kind?: string; title?: string; note?: string | null; url?: string | null; category?: string;
   cost?: string; duration?: string; event_on?: string | null; event_until?: string | null; want_more?: boolean;
-  done_on?: string | null;
+  done_on?: string | null; position?: number;
 };
 
 function dateIdeaFields(f: DateIdeaEdit) {
@@ -1285,6 +1285,7 @@ function dateIdeaFields(f: DateIdeaEdit) {
   if (f.event_until !== undefined) row.event_until = f.event_until ? fmt(f.event_until, DATE, "End date") : null;
   if (f.want_more !== undefined) row.want_more = !!f.want_more;
   if (f.done_on !== undefined) row.done_on = f.done_on ? fmt(f.done_on, DATE, "Done date") : null;
+  if (f.position !== undefined) row.position = num(f.position, "Position");
   return row;
 }
 

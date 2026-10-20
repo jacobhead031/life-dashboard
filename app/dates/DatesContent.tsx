@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useOptimistic, useRef, useState, useTransition } from "react";
-import { DndContext, PointerSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { DndContext, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
@@ -56,8 +56,10 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const restaurants = ideas.filter((i) => i.kind === "restaurant");
   const todo = activities.filter((i) => !i.done_on);
   const done = activities.filter((i) => i.done_on).sort((a, b) => (b.done_on! > a.done_on! ? 1 : -1));
-  const upcoming = todo.filter((i) => i.event_on && matches(i)).sort((a, b) => a.event_on!.localeCompare(b.event_on!));
-  const anytime = todo.filter((i) => !i.event_on && matches(i));
+  // ★ means "we really want this": starred rows sit above everything else in both lists.
+  const starFirst = (a: DateIdea, b: DateIdea) => Number(b.want_more) - Number(a.want_more);
+  const upcoming = todo.filter((i) => i.event_on && matches(i)).sort((a, b) => starFirst(a, b) || a.event_on!.localeCompare(b.event_on!));
+  const anytime = todo.filter((i) => !i.event_on && matches(i)).sort((a, b) => starFirst(a, b) || a.position - b.position);
   const avg = (id: string) => {
     const s = scores.filter((x) => x.idea_id === id);
     return s.length ? s.reduce((a, x) => a + x.score, 0) / s.length : null;
@@ -69,7 +71,8 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const open = ideas.find((i) => i.id === openId);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }), // press and hold the handle on a phone
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
   function handleDragEnd({ active, over }: DragEndEvent) {
@@ -91,7 +94,11 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
     startTransition(async () => { await deleteDateIdea(i.id); });
   };
   const toggleDone = (i: DateIdea, on: boolean) => update({ id: i.id, done_on: on ? today : null }, () => setDateDone(i.id, on));
-  const toggleStar = (i: DateIdea) => update({ id: i.id, want_more: !i.want_more }, () => saveDateIdea(i.id, { want_more: !i.want_more }));
+  // Starring also moves it to the top of the list order, so it stays first if it's later unstarred.
+  const toggleStar = (i: DateIdea) => {
+    const f: DateIdeaEdit = i.want_more ? { want_more: false } : { want_more: true, position: Math.min(0, ...todo.map((t) => t.position)) - 1 };
+    update({ id: i.id, ...(f as Partial<DateIdea>) }, () => saveDateIdea(i.id, f));
+  };
 
   if (serverIdeas.length === 0) {
     return (
@@ -142,7 +149,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
               {DURATIONS.map((d) => <button key={d} type="button" className={duration === d ? "on" : ""} onClick={() => setDuration(duration === d ? "" : d)}>{d}</button>)}
             </div>
             <div className="dates-seg">
-              <button type="button" className={starred ? "on" : ""} onClick={() => setStarred((s) => !s)}>★ want more</button>
+              <button type="button" className={starred ? "on" : ""} onClick={() => setStarred((s) => !s)}>★ really want</button>
             </div>
           </>
         )}
@@ -207,6 +214,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
             today={today}
             busy={isPending}
             save={(f) => update({ id: open.id, ...(f as Partial<DateIdea>) }, () => saveDateIdea(open.id, f))}
+            toggleStar={() => toggleStar(open)}
             toggleDone={(on) => toggleDone(open, on)}
             saveReview={(r) => update({ id: open.id, review: r }, () => saveDateReview(open.id, r))}
             score={(s) => startTransition(async () => { await setDateScore(open.id, s); })}
@@ -294,9 +302,9 @@ function AddForm({ busy, initialKind, submit }: { busy: boolean; initialKind: "a
   );
 }
 
-function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleDone, saveReview, score, removeMedia, remove, close }: {
+function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleStar, toggleDone, saveReview, score, removeMedia, remove, close }: {
   idea: DateIdea; media: Media[]; scores: DateScore[]; userId: string; today: string; busy: boolean;
-  save: (f: DateIdeaEdit) => void; toggleDone: (on: boolean) => void; saveReview: (r: string) => void; score: (s: number | null) => void;
+  save: (f: DateIdeaEdit) => void; toggleStar: () => void; toggleDone: (on: boolean) => void; saveReview: (r: string) => void; score: (s: number | null) => void;
   removeMedia: (m: Media) => void; remove: () => void; close: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -389,7 +397,7 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleD
             {i.done_on && (
               <label className="gd-check">on <input type="date" className="dates-date" value={i.done_on} max={today} disabled={busy} aria-label="Date we did it" onChange={(e) => { if (e.target.value) save({ done_on: e.target.value }); }} /></label>
             )}
-            <label className="gd-check"><input type="checkbox" checked={i.want_more} disabled={busy} onChange={() => save({ want_more: !i.want_more })} /> ★ want more of this</label>
+            <label className="gd-check"><input type="checkbox" checked={i.want_more} disabled={busy} onChange={toggleStar} /> ★ really want to do this</label>
             <button type="button" className="d-btn" onClick={() => setEditing(true)}>edit</button>
             <button type="button" className="d-btn danger" disabled={busy} onClick={remove}>delete</button>
           </div>
