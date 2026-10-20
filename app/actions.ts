@@ -1267,12 +1267,14 @@ const DATE_COSTS = ["free", "$", "$$", "$$$"];
 const DATE_DURATIONS = ["1h", "evening", "half day", "full day"];
 
 export type DateIdeaEdit = {
-  title?: string; note?: string | null; url?: string | null; category?: string;
+  kind?: string; title?: string; note?: string | null; url?: string | null; category?: string;
   cost?: string; duration?: string; event_on?: string | null; event_until?: string | null; want_more?: boolean;
+  done_on?: string | null;
 };
 
 function dateIdeaFields(f: DateIdeaEdit) {
   const row: Record<string, unknown> = {};
+  if (f.kind !== undefined) { if (f.kind !== "activity" && f.kind !== "restaurant") throw new Error("Kind is not valid"); row.kind = f.kind; }
   if (f.title !== undefined) row.title = str(f.title, "Title", 200);
   if (f.note !== undefined) row.note = cap(f.note, "Note", 2000)?.trim() || null;
   if (f.url !== undefined) row.url = f.url && /^https?:\/\/\S{1,900}$/.test(f.url.trim()) ? f.url.trim() : null;
@@ -1282,6 +1284,7 @@ function dateIdeaFields(f: DateIdeaEdit) {
   if (f.event_on !== undefined) row.event_on = f.event_on ? fmt(f.event_on, DATE, "Date") : null;
   if (f.event_until !== undefined) row.event_until = f.event_until ? fmt(f.event_until, DATE, "End date") : null;
   if (f.want_more !== undefined) row.want_more = !!f.want_more;
+  if (f.done_on !== undefined) row.done_on = f.done_on ? fmt(f.done_on, DATE, "Done date") : null;
   return row;
 }
 
@@ -1314,6 +1317,7 @@ export async function reorderDateIdea(id: string, position: number) {
 }
 
 // Done flips it into a scrapbook entry (photos, review, scores). Undone keeps them.
+// The date defaults to today and can be changed afterwards via saveDateIdea({ done_on }).
 export async function setDateDone(id: string, done: boolean) {
   const { supabase } = await authed();
   await ok(supabase.from("date_idea").update({ done_on: done ? todayStr() : null }).eq("id", id));

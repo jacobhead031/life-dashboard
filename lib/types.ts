@@ -413,10 +413,11 @@ export type DateDuration = "1h" | "evening" | "half day" | "full day";
 export type DateIdea = {
   id: string;
   user_id: string; // who added it; the partner sees it too
+  kind: "activity" | "restaurant";
   title: string;
   note: string | null;
   url: string | null;
-  category: string;
+  category: string; // activities: a tag from the list; restaurants: the cuisine
   cost: DateCost;
   duration: DateDuration;
   event_on: string | null; // YYYY-MM-DD; null = anytime
