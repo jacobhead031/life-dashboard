@@ -85,6 +85,20 @@ journal_log: user_id, date (pk on both);  user_settings.journal_start date
 - Seed: `lib/life-goals.json` via `seedLifeGoals` (skips slugs that already exist).
 - **Albums:** a `life_counter_entry` belongs to a counter (`counter` set) or to a count goal (`goal_id` set, e.g. a song), never both. `life_media` (`entry_id`, `path`, `kind` image|video) holds its photos and videos in the `goal-photos` bucket at `<user_id>/<entry_id>/<ts>-<filename>`. Adding a goal entry bumps `count_current`; deleting one drops it. `deleteCounterEntry` removes the album's storage objects first (storage doesn't cascade).
 
+### `date_idea` (+ `date_score`, `date_media`) — Dates (`/dates`)
+```sql
+date_idea: id, user_id (who added it), title, note, url, category text, cost (free|$|$$|$$$),
+  duration (1h|evening|half day|full day), event_on date, event_until date (null = anytime),
+  source (manual|seed|weekly), want_more bool, position float, done_on date, review text, created_at
+date_score: idea_id, user_id, score 1-10 (pk on both — one per person)
+date_media: id, idea_id, user_id, path, kind (image|video)  -- private `date-photos` bucket, <idea_id>/<ts>-<filename>
+user_settings (+): partner_id uuid
+```
+- **Shared with one other person.** RLS uses `shared_with_me(user_id)` (security definer): a row is visible to its owner and to whoever that owner names in `user_settings.partner_id`. Set it both ways so each sees the other's rows. The storage policy keys on the idea id in the path, not the uploader's uid.
+- Done = `done_on` set; the row then shows in the scrapbook with its album, a shared `review` and one `date_score` per person. The restaurants view ranks done `food`/`drinks` rows by average score.
+- "Coming up" = rows with `event_on`, sorted by date; "anytime" = the rest, drag-ordered by `position`.
+- Seed: `lib/date-ideas.json` via `seedDateIdeas` (only when the pair has no rows). `~/health-coach/date_events.py` runs every Sunday 7 pm (`jobs.py dates`): deletes `seed`/`weekly` rows whose `event_until` has passed and nobody did, then `claude -p` with web search adds the next 30 days of free/cheap Toronto events as `source = weekly`.
+
 ### `tri_*` — triathlon coach (`/coach`)
 ```sql
 tri_profile: user_id (pk), race_date, goal_s/floor_s/stretch_s int (seconds), ftp_watts, css_s_100m,

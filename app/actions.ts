@@ -1285,10 +1285,10 @@ function dateIdeaFields(f: DateIdeaEdit) {
   return row;
 }
 
-// First-run import of lib/date-ideas.json; a no-op once the pair has any ideas.
+// First-run import of lib/date-ideas.json; a no-op once the starter rows exist (weekly rows don't count).
 export async function seedDateIdeas() {
   const { supabase, user } = await authed();
-  const existing = await ok(supabase.from("date_idea").select("id").limit(1));
+  const existing = await ok(supabase.from("date_idea").select("id").eq("source", "seed").limit(1));
   if (existing?.length) return;
   await ok(supabase.from("date_idea").insert((dateSeed as DateIdeaEdit[]).map((d, i) => ({ ...dateIdeaFields(d), user_id: user.id, source: "seed", position: i }))));
   revalidatePath("/dates");
