@@ -5,7 +5,7 @@ import { DndContext, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSen
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { CareerApp, CareerContact, CareerTodo, CareerWin } from "@/lib/types";
-import { APP_STATUSES, CONTACT_STAGES, GATES, WEEKLY_MESSAGE_TARGET, currentGate, salesExpMonths, scorecard } from "@/lib/career";
+import { APP_STATUSES, CONTACT_STAGES, GATES, STANDING, WEEKLY_MESSAGE_TARGET, currentGate, salesExpMonths, scorecard } from "@/lib/career";
 import { addDays, weekMonday } from "@/lib/utils";
 import {
   addCareerApp, addCareerContact, addCareerTodo, addCareerWin, deleteCareerApp, deleteCareerContact, deleteCareerTodo, deleteCareerWin,
@@ -67,6 +67,10 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
         </DndContext>
         {todos.filter((t) => t.done).map((t) => <TodoRow key={t.id} t={t} busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
         <QuickAdd placeholder="add a priority" busy={isPending} submit={(text) => run(() => addCareerTodo(weekStr, text))} />
+        <div className="career-standing">
+          <div className="life-kicker" style={{ color: "var(--muted-2)" }}>every week</div>
+          {STANDING.map((t) => <div key={t} className="career-standing-item">{t}</div>)}
+        </div>
       </section>
 
       {/* ── Gates + scorecard ── */}

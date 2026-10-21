@@ -11,6 +11,12 @@ export const GATES = [
 
 export const WEEKLY_MESSAGE_TARGET = 5;
 
+// Standing items that never leave the list; the agent doesn't re-add them as to-dos.
+export const STANDING = [
+  "Check the UTSC co-op portal (the agent can't log in)",
+  "Every 2 weeks: a LinkedIn procedure-breakdown post (first: total knee replacement)",
+];
+
 export const APP_STATUSES = ["to_apply", "applied", "interview", "offer", "watch", "closed"] as const;
 export const CONTACT_STAGES = ["found", "drafted", "sent", "replied", "call", "shadow"] as const;
 
