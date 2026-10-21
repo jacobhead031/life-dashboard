@@ -9,7 +9,7 @@ export const GATES = [
   { key: "after", name: "After", start: "2030-06-01", end: "2099-12-31", gate: "Toronto rep → top performer → US transfer (L-1)" },
 ] as const;
 
-export const WEEKLY_MESSAGE_TARGET = 5;
+export const WEEKLY_MESSAGE_TARGET = 3; // school comes first; 3 real messages beat 5 rushed ones
 
 // Standing items that never leave the list; the agent doesn't re-add them as to-dos.
 export const STANDING = [
