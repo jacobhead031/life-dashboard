@@ -64,9 +64,10 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
     const s = scores.filter((x) => x.idea_id === id);
     return s.length ? s.reduce((a, x) => a + x.score, 0) / s.length : null;
   };
-  // Been: best to worst. Not yet: the list order. "All" shows both, been first.
-  const been = restaurants.filter((i) => i.done_on).sort((a, b) => (avg(b.id) ?? 0) - (avg(a.id) ?? 0));
-  const notYet = restaurants.filter((i) => !i.done_on);
+  // Been: best to worst. Not yet: starred first, then the drag order. "All" shows both, been first.
+  const placeMatches = (i: DateIdea) => (!cost || i.cost === cost) && (!starred || i.want_more);
+  const been = restaurants.filter((i) => i.done_on && placeMatches(i)).sort((a, b) => (avg(b.id) ?? 0) - (avg(a.id) ?? 0));
+  const notYet = restaurants.filter((i) => !i.done_on && placeMatches(i)).sort((a, b) => starFirst(a, b) || a.position - b.position);
   const food = eaten === "been" ? been : eaten === "not" ? notYet : [...been, ...notYet];
   const open = ideas.find((i) => i.id === openId);
 
@@ -77,10 +78,11 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   );
   function handleDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
-    const from = anytime.findIndex((i) => i.id === active.id);
-    const to = anytime.findIndex((i) => i.id === over.id);
+    const list = view === "food" ? notYet : anytime;
+    const from = list.findIndex((i) => i.id === active.id);
+    const to = list.findIndex((i) => i.id === over.id);
     if (from === -1 || to === -1) return;
-    const moved = arrayMove(anytime, from, to);
+    const moved = arrayMove(list, from, to);
     const prev = moved[to - 1]?.position;
     const next = moved[to + 1]?.position;
     const position = prev !== undefined && next !== undefined ? (prev + next) / 2 : prev !== undefined ? prev + 1 : next !== undefined ? next - 1 : 0;
@@ -115,6 +117,8 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
 
   const row = (i: DateIdea) => (
     <RowBody key={i.id} idea={i} n={media.filter((m) => m.idea_id === i.id).length} avg={avg(i.id)} disabled={isPending}
+      mine={scores.find((x) => x.idea_id === i.id && x.user_id === userId)?.score ?? null}
+      score={(v) => startTransition(async () => { await setDateScore(i.id, v); })}
       open={() => setOpenId(i.id)} toggleDone={(on) => toggleDone(i, on)} toggleStar={() => toggleStar(i)} />
   );
 
@@ -138,26 +142,28 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
             </button>
           ))}
         </div>
-        {view === "todo" && (
-          <>
-            <div className="dates-seg">
-              <button type="button" className={cost === "" ? "on" : ""} onClick={() => setCost("")}>any cost</button>
-              {COSTS.map((c) => <button key={c} type="button" className={cost === c ? "on" : ""} onClick={() => setCost(cost === c ? "" : c)}>{c}</button>)}
-            </div>
-            <div className="dates-seg">
-              <button type="button" className={duration === "" ? "on" : ""} onClick={() => setDuration("")}>any time</button>
-              {DURATIONS.map((d) => <button key={d} type="button" className={duration === d ? "on" : ""} onClick={() => setDuration(duration === d ? "" : d)}>{d}</button>)}
-            </div>
-            <div className="dates-seg">
-              <button type="button" className={starred ? "on" : ""} onClick={() => setStarred((s) => !s)}>★ really want</button>
-            </div>
-          </>
-        )}
         {view === "food" && (
           <div className="dates-seg">
             <button type="button" className={eaten === "" ? "on" : ""} onClick={() => setEaten("")}>all</button>
             <button type="button" className={eaten === "been" ? "on" : ""} onClick={() => setEaten("been")}>been</button>
             <button type="button" className={eaten === "not" ? "on" : ""} onClick={() => setEaten("not")}>not yet</button>
+          </div>
+        )}
+        {view !== "done" && (
+          <div className="dates-seg">
+            <button type="button" className={cost === "" ? "on" : ""} onClick={() => setCost("")}>any cost</button>
+            {COSTS.map((c) => <button key={c} type="button" className={cost === c ? "on" : ""} onClick={() => setCost(cost === c ? "" : c)}>{c}</button>)}
+          </div>
+        )}
+        {view === "todo" && (
+          <div className="dates-seg">
+            <button type="button" className={duration === "" ? "on" : ""} onClick={() => setDuration("")}>any time</button>
+            {DURATIONS.map((d) => <button key={d} type="button" className={duration === d ? "on" : ""} onClick={() => setDuration(duration === d ? "" : d)}>{d}</button>)}
+          </div>
+        )}
+        {view !== "done" && (
+          <div className="dates-seg">
+            <button type="button" className={starred ? "on" : ""} onClick={() => setStarred((s) => !s)}>★ really want</button>
           </div>
         )}
       </div>
@@ -192,14 +198,23 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
 
       {view === "food" && (
         <section>
-          <div className="life-cat">{eaten === "not" ? "places to try" : "restaurants, best to worst"}</div>
-          {food.length === 0 && <p className="life-none">No restaurants yet. Hit + idea and pick restaurant.</p>}
-          {food.map((i) => (
-            <div key={i.id} className="dates-row">
-              <span className="dates-rank">{i.done_on ? been.indexOf(i) + 1 : ""}</span>
-              {row(i)}
-            </div>
-          ))}
+          {food.length === 0 && <p className="life-none">No restaurants match. Hit + idea and pick restaurant, or loosen the filters.</p>}
+          {eaten !== "not" && been.length > 0 && (
+            <>
+              <div className="life-cat">been, best to worst</div>
+              {been.map((i, n) => <div key={i.id} className="dates-row"><span className="dates-rank">{n + 1}</span>{row(i)}</div>)}
+            </>
+          )}
+          {eaten !== "been" && notYet.length > 0 && (
+            <>
+              <div className="life-cat">to try</div>
+              <DndContext id="places-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={notYet.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  {notYet.map((i) => <SortableRow key={i.id} id={i.id}>{row(i)}</SortableRow>)}
+                </SortableContext>
+              </DndContext>
+            </>
+          )}
         </section>
       )}
 
@@ -238,8 +253,9 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
   );
 }
 
-function RowBody({ idea: i, n, avg, disabled, open, toggleDone, toggleStar }: {
-  idea: DateIdea; n: number; avg: number | null; disabled: boolean; open: () => void; toggleDone: (on: boolean) => void; toggleStar: () => void;
+function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, toggleStar }: {
+  idea: DateIdea; n: number; avg: number | null; mine: number | null; score: (v: number | null) => void;
+  disabled: boolean; open: () => void; toggleDone: (on: boolean) => void; toggleStar: () => void;
 }) {
   return (
     <>
@@ -254,6 +270,12 @@ function RowBody({ idea: i, n, avg, disabled, open, toggleDone, toggleStar }: {
           {i.done_on && <span className="dates-chip when">{avg !== null ? `${avg.toFixed(1)}/10` : "unrated"} · {n ? `${n} photos` : "no photos"}</span>}
         </span>
       </button>
+      {i.done_on && (
+        <select className="dates-date dates-row-score" aria-label={`My score for ${i.title}`} value={mine ?? ""} disabled={disabled} onChange={(e) => score(e.target.value ? Number(e.target.value) : null)}>
+          <option value="">me</option>
+          {Array.from({ length: 10 }, (_, k) => k + 1).map((k) => <option key={k} value={k}>{k}</option>)}
+        </select>
+      )}
       <button type="button" className={`dates-star${i.want_more ? " on" : ""}`} aria-label={i.want_more ? "Want this less" : "Want this more"} disabled={disabled} onClick={toggleStar}>★</button>
     </>
   );
