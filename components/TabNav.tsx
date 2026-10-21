@@ -1,36 +1,28 @@
 import Link from "next/link";
 
-export function TabNav({ active, guest = false }: { active: "dashboard" | "school" | "projects" | "health" | "coach" | "stats" | "budget" | "goals" | "dates"; guest?: boolean }) {
+// Tab order is this list. Move a line to move a tab; add a line to add one.
+const TABS = [
+  { key: "dashboard", href: "/", label: "Dashboard" },
+  { key: "school", href: "/school", label: "School" },
+  { key: "coach", href: "/coach", label: "Coach" }, // /stats lives inside Coach now
+  { key: "projects", href: "/notes", label: "Projects" },
+  { key: "health", href: "/health", label: "Health" },
+  { key: "budget", href: "/budget", label: "Budget" },
+  { key: "goals", href: "/life", label: "Goals" },
+  { key: "dates", href: "/dates", label: "Dates" },
+] as const;
+
+export type TabKey = (typeof TABS)[number]["key"];
+
+export function TabNav({ active, guest = false }: { active: TabKey; guest?: boolean }) {
   if (guest) return null; // the partner only has /dates, so there is nothing to switch between
   return (
     <nav className="tab-nav">
-      <Link href="/" className={`tab-link${active === "dashboard" ? " active" : ""}`}>
-        Dashboard
-      </Link>
-      <Link href="/school" className={`tab-link${active === "school" ? " active" : ""}`}>
-        School
-      </Link>
-      <Link href="/coach" className={`tab-link${active === "coach" ? " active" : ""}`}>
-        Coach
-      </Link>
-      <Link href="/stats" className={`tab-link${active === "stats" ? " active" : ""}`}>
-        Stats
-      </Link>
-      <Link href="/notes" className={`tab-link${active === "projects" ? " active" : ""}`}>
-        Projects
-      </Link>
-      <Link href="/health" className={`tab-link${active === "health" ? " active" : ""}`}>
-        Health
-      </Link>
-      <Link href="/budget" className={`tab-link${active === "budget" ? " active" : ""}`}>
-        Budget
-      </Link>
-      <Link href="/life" className={`tab-link${active === "goals" ? " active" : ""}`}>
-        Goals
-      </Link>
-      <Link href="/dates" className={`tab-link${active === "dates" ? " active" : ""}`}>
-        Dates
-      </Link>
+      {TABS.map((t) => (
+        <Link key={t.key} href={t.href} className={`tab-link${active === t.key ? " active" : ""}`}>
+          {t.label}
+        </Link>
+      ))}
     </nav>
   );
 }

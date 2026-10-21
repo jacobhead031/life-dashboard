@@ -89,9 +89,8 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
     update({ id: String(active.id), position }, () => reorderDateIdea(String(active.id), position));
   }
 
+  // One tap, no confirm (asked for). close() fires onClose, which clears openId; clearing openId alone leaves the empty modal up.
   const remove = (i: DateIdea) => {
-    if (!confirm(`Delete "${i.title}"? Photos go with it.`)) return;
-    // close() fires onClose, which clears openId; clearing openId alone leaves the empty modal up.
     dialog.current?.close();
     startTransition(async () => { await deleteDateIdea(i.id); });
   };
@@ -119,7 +118,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
     <RowBody key={i.id} idea={i} n={media.filter((m) => m.idea_id === i.id).length} avg={avg(i.id)} disabled={isPending}
       mine={scores.find((x) => x.idea_id === i.id && x.user_id === userId)?.score ?? null}
       score={(v) => startTransition(async () => { await setDateScore(i.id, v); })}
-      open={() => setOpenId(i.id)} toggleDone={(on) => toggleDone(i, on)} toggleStar={() => toggleStar(i)} />
+      open={() => setOpenId(i.id)} toggleDone={(on) => toggleDone(i, on)} toggleStar={() => toggleStar(i)} remove={() => remove(i)} />
   );
 
   return (
@@ -233,7 +232,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
             toggleDone={(on) => toggleDone(open, on)}
             saveReview={(r) => update({ id: open.id, review: r }, () => saveDateReview(open.id, r))}
             score={(s) => startTransition(async () => { await setDateScore(open.id, s); })}
-            removeMedia={(m) => { if (confirm("Delete this from the album?")) startTransition(async () => { await deleteDateMedia(m.id); }); }}
+            removeMedia={(m) => startTransition(async () => { await deleteDateMedia(m.id); })}
             remove={() => remove(open)}
             close={() => dialog.current?.close()}
           />
@@ -253,9 +252,9 @@ function SortableRow({ id, children }: { id: string; children: React.ReactNode }
   );
 }
 
-function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, toggleStar }: {
+function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, toggleStar, remove }: {
   idea: DateIdea; n: number; avg: number | null; mine: number | null; score: (v: number | null) => void;
-  disabled: boolean; open: () => void; toggleDone: (on: boolean) => void; toggleStar: () => void;
+  disabled: boolean; open: () => void; toggleDone: (on: boolean) => void; toggleStar: () => void; remove: () => void;
 }) {
   return (
     <>
@@ -277,6 +276,7 @@ function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, tog
         </select>
       )}
       <button type="button" className={`dates-star${i.want_more ? " on" : ""}`} aria-label={i.want_more ? "Want this less" : "Want this more"} disabled={disabled} onClick={toggleStar}>★</button>
+      <button type="button" className="d-btn danger dates-x" aria-label={`Delete ${i.title}`} disabled={disabled} onClick={remove}>✕</button>
     </>
   );
 }

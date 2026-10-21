@@ -2337,3 +2337,4 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .dates-row .todo-drag-handle { font-size: 18px; padding: 0 6px; margin-left: -6px; line-height: 1.1; } /* big enough to press and hold on a phone */
 .dates-row .dates-star { font-size: 22px; }
 .dates-row-score { align-self: flex-start; font-family: var(--font-space-mono), monospace; font-size: 12px; padding: 2px 4px; }
+.dates-x { padding: 2px 7px; font-size: 12px; line-height: 1.4; }

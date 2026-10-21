@@ -294,7 +294,7 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
       </section>
 
       <section className="card span-3">
-        <div className="card-label"><span>fitness · fatigue (Intervals.icu)</span></div>
+        <div className="card-label"><span>fitness · fatigue (Intervals.icu)</span><Link href="/stats" className="card-nav">open stats →</Link></div>
         {trend.length >= 2 ? (
           <>
             <Sparkline points={trend} color="var(--sky)" format={(v) => `CTL ${v.toFixed(0)}`} />

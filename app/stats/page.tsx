@@ -25,7 +25,7 @@ export default async function StatsPage() {
         <SignOutButton />
       </div>
       <div className="rule" />
-      <TabNav active="stats" />
+      <TabNav active="coach" />
       <StatsContent today={today} health={health ?? []} activities={activities ?? []} profile={profile ?? null} />
     </div>
   );
