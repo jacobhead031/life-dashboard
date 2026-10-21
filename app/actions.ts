@@ -7,6 +7,8 @@ import { LIFE_CATEGORIES, LIFE_COUNTERS } from "@/lib/life";
 import { findCover } from "@/lib/unsplash";
 import lifeSeed from "@/lib/life-goals.json";
 import dateSeed from "@/lib/date-ideas.json";
+import careerSeed from "@/lib/career-seed.json";
+import { APP_STATUSES, CONTACT_STAGES } from "@/lib/career";
 import type { LifeGoal, LifeStep, TriSessionStatus } from "@/lib/types";
 import { deleteEvent, moveEvent } from "@/lib/intervals";
 
@@ -1372,4 +1374,126 @@ export async function deleteDateMedia(id: string) {
     await ok(supabase.from("date_media").delete().eq("id", id));
   }
   revalidatePath("/dates");
+}
+
+// ── Career ────────────────────────────────────────────────────
+
+function revalidateCareer() { revalidatePath("/career"); revalidatePath("/"); }
+
+export type CareerAppEdit = { role?: string; company?: string; location?: string | null; term?: string | null; status?: string; url?: string | null; notes?: string | null; applied_on?: string | null; heard_on?: string | null };
+export type CareerContactEdit = {
+  name?: string; role?: string | null; company?: string | null; why?: string | null; channel?: string; stage?: string; email?: string | null; linkedin_url?: string | null;
+  draft?: string | null; sent_on?: string | null; next_followup?: string | null; last_touch?: string | null; do_not_contact?: boolean;
+};
+
+const optDate = (v: string | null | undefined, label: string) => (v === undefined ? undefined : v ? fmt(v, DATE, label) : null);
+const optUrl = (v: string | null | undefined) => (v === undefined ? undefined : v && /^https?:\/\/\S{1,900}$/.test(v.trim()) ? v.trim() : null);
+const optText = (v: string | null | undefined, label: string, max = 2000) => (v === undefined ? undefined : cap(v, label, max)?.trim() || null);
+
+function careerAppFields(f: CareerAppEdit) {
+  const row: Record<string, unknown> = { updated_at: new Date().toISOString() };
+  if (f.role !== undefined) row.role = str(f.role, "Role", 200);
+  if (f.company !== undefined) row.company = str(f.company, "Company", 200);
+  if (f.location !== undefined) row.location = optText(f.location, "Location", 200);
+  if (f.term !== undefined) row.term = optText(f.term, "Term", 200);
+  if (f.status !== undefined) { if (!APP_STATUSES.includes(f.status as never)) throw new Error("Status is not valid"); row.status = f.status; }
+  if (f.url !== undefined) row.url = optUrl(f.url);
+  if (f.notes !== undefined) row.notes = optText(f.notes, "Notes");
+  if (f.applied_on !== undefined) row.applied_on = optDate(f.applied_on, "Applied date");
+  if (f.heard_on !== undefined) row.heard_on = optDate(f.heard_on, "Heard-back date");
+  return row;
+}
+
+function careerContactFields(f: CareerContactEdit) {
+  const row: Record<string, unknown> = {};
+  if (f.name !== undefined) row.name = str(f.name, "Name", 200);
+  for (const k of ["role", "company", "why", "email"] as const) if (f[k] !== undefined) row[k] = optText(f[k], k, 500);
+  if (f.channel !== undefined) { if (f.channel !== "email" && f.channel !== "linkedin") throw new Error("Channel is not valid"); row.channel = f.channel; }
+  if (f.stage !== undefined) { if (!CONTACT_STAGES.includes(f.stage as never)) throw new Error("Stage is not valid"); row.stage = f.stage; }
+  if (f.linkedin_url !== undefined) row.linkedin_url = optUrl(f.linkedin_url);
+  if (f.draft !== undefined) row.draft = optText(f.draft, "Draft", 5000);
+  if (f.sent_on !== undefined) row.sent_on = optDate(f.sent_on, "Sent date");
+  if (f.next_followup !== undefined) row.next_followup = optDate(f.next_followup, "Follow-up date");
+  if (f.last_touch !== undefined) row.last_touch = optDate(f.last_touch, "Last touch");
+  if (f.do_not_contact !== undefined) row.do_not_contact = !!f.do_not_contact;
+  return row;
+}
+
+// First-run import of lib/career-seed.json; a no-op once any pipeline row exists.
+export async function seedCareer(week: string) {
+  const { supabase, user } = await authed();
+  fmt(week, DATE, "Week");
+  const existing = await ok(supabase.from("career_app").select("id").limit(1));
+  if (existing?.length) return;
+  await ok(supabase.from("career_todo").insert(careerSeed.todos.map((text, i) => ({ user_id: user.id, week, text, position: i }))));
+  await ok(supabase.from("career_app").insert(careerSeed.apps.map((a) => ({ ...careerAppFields(a), user_id: user.id }))));
+  await ok(supabase.from("career_contact").insert(careerSeed.contacts.map((c) => ({ ...careerContactFields(c), user_id: user.id }))));
+  await ok(supabase.from("career_win").insert(careerSeed.wins.map((w) => ({ user_id: user.id, text: w.text, metric: w.metric || null }))));
+  revalidateCareer();
+}
+
+export async function addCareerTodo(week: string, text: string) {
+  const { supabase, user } = await authed();
+  const top = await ok(supabase.from("career_todo").select("position").eq("week", fmt(week, DATE, "Week")).order("position", { ascending: false }).limit(1).maybeSingle());
+  await ok(supabase.from("career_todo").insert({ user_id: user.id, week, text: str(text, "To-do", 500), position: (top?.position ?? 0) + 1 }));
+  revalidateCareer();
+}
+export async function toggleCareerTodo(id: string, done: boolean) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_todo").update({ done: !!done }).eq("id", id));
+  revalidateCareer();
+}
+export async function deleteCareerTodo(id: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_todo").delete().eq("id", id));
+  revalidateCareer();
+}
+
+export async function addCareerApp(f: CareerAppEdit) {
+  const { supabase, user } = await authed();
+  await ok(supabase.from("career_app").insert({ ...careerAppFields({ status: "to_apply", ...f }), user_id: user.id }));
+  revalidateCareer();
+}
+export async function saveCareerApp(id: string, f: CareerAppEdit) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_app").update(careerAppFields(f)).eq("id", id));
+  revalidateCareer();
+}
+export async function deleteCareerApp(id: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_app").delete().eq("id", id));
+  revalidateCareer();
+}
+
+export async function addCareerContact(f: CareerContactEdit) {
+  const { supabase, user } = await authed();
+  await ok(supabase.from("career_contact").insert({ ...careerContactFields(f), user_id: user.id }));
+  revalidateCareer();
+}
+export async function saveCareerContact(id: string, f: CareerContactEdit) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_contact").update(careerContactFields(f)).eq("id", id));
+  revalidateCareer();
+}
+export async function deleteCareerContact(id: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_contact").delete().eq("id", id));
+  revalidateCareer();
+}
+
+export async function addCareerWin(text: string, metric: string | null, happenedOn: string | null) {
+  const { supabase, user } = await authed();
+  await ok(supabase.from("career_win").insert({ user_id: user.id, text: str(text, "Win", 500), metric: optText(metric, "Metric", 100), happened_on: optDate(happenedOn, "Date") }));
+  revalidateCareer();
+}
+export async function deleteCareerWin(id: string) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_win").delete().eq("id", id));
+  revalidateCareer();
+}
+
+export async function setSalesExpSince(since: string | null) {
+  const { supabase, user } = await authed();
+  await ok(supabase.from("user_settings").upsert({ user_id: user.id, sales_exp_since: optDate(since, "Start date") }, { onConflict: "user_id" }));
+  revalidateCareer();
 }

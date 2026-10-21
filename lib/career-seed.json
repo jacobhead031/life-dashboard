@@ -1,0 +1,29 @@
+{
+  "todos": [
+    "Check the UTSC co-op portal and the careers pages for Summer 2027 commercial roles; apply to anything that fits",
+    "Confirm the work-term sequence (4 or 8 months) with the co-op coordinator",
+    "Message the BD territory manager: ask for a 20-minute call and a shadow day over winter break",
+    "Rewrite the LinkedIn headline, About and Featured sections (Known Quantity)",
+    "Start the brag book: hockey MVP and Most Improved, half-marathon time, Known Quantity on the App Store, HubSpot certification"
+  ],
+  "apps": [
+    { "role": "Outside Sales Internship", "company": "Uline", "location": "Milton, ON", "term": "16–17 weeks, summer 2027", "status": "to_apply", "url": "https://www.uline.jobs", "notes": "The 2027 posting is live for Ottawa ($27/hr); find the Milton one. Past postings said 3rd/4th year only and a vehicle required. Ask whether a rising 3rd-year qualifies." },
+    { "role": "2027 Summer Intern", "company": "Kyowa Kirin", "location": "Mississauga, ON", "term": "May 25 – Aug 20, 2027", "status": "to_apply", "notes": "Wants business, marketing or public health majors; pitch Human Bio as \"or similar.\" $33–36/hr." },
+    { "role": "Inside Sales Summer Student", "company": "Medtronic Canada", "location": "Brampton, ON", "term": "Summer 2027", "status": "watch", "url": "https://medtronic.wd1.myworkdayjobs.com", "notes": "2025 edition existed; watch from January." },
+    { "role": "Bilingual Billbacks Intern", "company": "BD", "location": "Mississauga, ON", "term": "May–Aug 2027", "status": "watch", "url": "https://jobs.bd.com", "notes": "2026 edition existed; French is the edge. BD posted May-start student roles in late January in 2025 and 2026." },
+    { "role": "Sales Support / Marketing Intern", "company": "Stryker Canada", "location": "Waterdown, ON", "term": "Summer 2027", "status": "watch", "url": "https://careers.stryker.com", "notes": "2025 editions existed." },
+    { "role": "Marketing Co-op, Surgery", "company": "J&J MedTech", "location": "Markham, ON", "term": "8 months", "status": "watch", "url": "https://careers.jnj.com", "notes": "January-start co-ops post in early September; watch for May starts." },
+    { "role": "SSuRe", "company": "SickKids", "location": "Toronto, ON", "term": "Summer 2027", "status": "watch", "notes": "Fallback with clinical exposure." }
+  ],
+  "contacts": [
+    { "name": "BD territory manager (Bronx / lower CT)", "role": "Territory Manager", "company": "BD", "why": "Existing contact. Jacob messages him directly: 20-minute call and a winter-break shadow day.", "channel": "email", "stage": "found", "do_not_contact": true },
+    { "name": "Aunt (research company, San Francisco)", "role": "", "company": "", "why": "Family. Jacob keeps this one himself; a later door into California.", "channel": "email", "stage": "found", "do_not_contact": true }
+  ],
+  "wins": [
+    { "text": "Hockey: team MVP", "metric": "" },
+    { "text": "Hockey: Most Improved", "metric": "" },
+    { "text": "Half marathon finished", "metric": "time" },
+    { "text": "Known Quantity on the App Store: field-sales CRM used by a real sales team", "metric": "users" },
+    { "text": "HubSpot Inbound Sales certification", "metric": "" }
+  ]
+}

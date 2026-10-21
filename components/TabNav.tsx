@@ -4,6 +4,7 @@ import Link from "next/link";
 const TABS = [
   { key: "dashboard", href: "/", label: "Dashboard" },
   { key: "school", href: "/school", label: "School" },
+  { key: "career", href: "/career", label: "Career" },
   { key: "coach", href: "/coach", label: "Coach" }, // /stats lives inside Coach now
   { key: "projects", href: "/notes", label: "Projects" },
   { key: "health", href: "/health", label: "Health" },

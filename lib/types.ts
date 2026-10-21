@@ -440,3 +440,23 @@ export type DateMedia = {
   kind: "image" | "video";
   created_at: string;
 };
+
+// ── Career (/career) ──────────────────────────────────────────
+export type CareerTodo = { id: string; user_id: string; week: string; text: string; done: boolean; position: number; created_at: string };
+
+export type CareerAppStatus = "to_apply" | "applied" | "interview" | "offer" | "watch" | "closed";
+export type CareerApp = {
+  id: string; user_id: string; role: string; company: string; location: string | null; term: string | null;
+  status: CareerAppStatus; url: string | null; notes: string | null; applied_on: string | null; heard_on: string | null;
+  source: "manual" | "agent"; created_at: string; updated_at: string;
+};
+
+export type CareerStage = "found" | "drafted" | "sent" | "replied" | "call" | "shadow";
+export type CareerContact = {
+  id: string; user_id: string; name: string; role: string | null; company: string | null; why: string | null;
+  channel: "email" | "linkedin"; stage: CareerStage; email: string | null; linkedin_url: string | null; draft: string | null;
+  sent_on: string | null; followup_sent: boolean; next_followup: string | null; last_touch: string | null;
+  do_not_contact: boolean; source: "manual" | "agent"; created_at: string;
+};
+
+export type CareerWin = { id: string; user_id: string; happened_on: string | null; text: string; metric: string | null; created_at: string };

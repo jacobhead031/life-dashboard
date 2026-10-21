@@ -19,6 +19,8 @@ import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
 import { HealthCard } from "@/components/cards/HealthCard";
 import { ThisYearCard } from "@/components/cards/ThisYearCard";
 import { CoachWeekCard } from "@/components/cards/CoachWeekCard";
+import { CareerWeekCard } from "@/components/cards/CareerWeekCard";
+import type { CareerTodo } from "@/lib/types";
 import { TabNav } from "@/components/TabNav";
 import { HomeGrid } from "@/components/HomeGrid";
 
@@ -104,6 +106,7 @@ export default async function HomePage() {
     { data: doneMove },
     { data: journal },
     { data: triWeek },
+    { data: careerTodos },
   ] = await Promise.all([
     supabase
       .from("monthly_goal")
@@ -165,6 +168,7 @@ export default async function HomePage() {
     supabase.from("life_move_log").select("goal_id, move").eq("done_on", today).limit(1).maybeSingle(),
     supabase.from("journal_log").select("date"),
     supabase.from("tri_session").select("*").gte("date", weekStr).lte("date", addDays(weekStr, 6)).order("date").order("slot"),
+    supabase.from("career_todo").select("*").eq("week", weekStr).order("position"),
   ]);
 
   // Derive finished-this-year count for books card label
@@ -222,6 +226,7 @@ export default async function HomePage() {
           { id: "health", span: 6, href: "/health", node: <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} /> },
           { id: "school", span: 6, href: "/school", node: <SchoolWeekCard items={school} weekStr={weekStr} todayStr={today} /> },
           { id: "coach", span: 6, href: "/coach", node: <CoachWeekCard sessions={triWeek ?? []} weekStr={weekStr} todayStr={today} /> },
+          { id: "career", span: 6, href: "/career", node: <CareerWeekCard todos={(careerTodos ?? []) as CareerTodo[]} todayStr={today} /> },
           { id: "monthly-goals", span: 2, href: "/goals", node: <MonthlyGoalsCard goals={goals ?? []} currentMonthStr={currentMonthStr} /> },
           { id: "projects", span: 4, href: "/notes", node: <ActiveProjectsCard projects={liveProjects ?? []} /> },
           { id: "books", span: 3, href: "/books", node: <BooksCard books={books ?? []} finishedThisYear={finishedThisYear} /> },

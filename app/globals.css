@@ -2338,3 +2338,30 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .dates-row .dates-star { font-size: 22px; }
 .dates-row-score { align-self: flex-start; font-family: var(--font-space-mono), monospace; font-size: 12px; padding: 2px 4px; }
 .dates-x { padding: 2px 7px; font-size: 12px; line-height: 1.4; }
+
+/* ─── Career tab ─────────────────────────────────────────────── */
+.career-gates { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 14px; }
+.career-gate { padding: 8px 6px 6px; border-top: 3px solid var(--line); min-width: 0; }
+.career-gate.past { border-top-color: var(--green); }
+.career-gate.now { border-top-color: var(--amber); }
+.career-gate-name { display: block; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.career-gate.now .career-gate-name { color: var(--amber); }
+.career-gate-text { display: block; font-size: 10.5px; color: var(--muted-2); line-height: 1.35; margin-top: 2px; }
+.career-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(90px, 1fr)); gap: 10px 8px; margin-bottom: 12px; }
+.career-stat .stat-num { font-size: 24px; }
+.career-since { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); flex-wrap: wrap; }
+.career-gate-line { font-family: var(--font-space-mono), monospace; font-size: 11px; color: var(--muted-2); margin-top: 10px; }
+.career-row { align-items: flex-start; }
+.career-select { font-size: 11.5px; padding: 2px 4px; flex-shrink: 0; margin-top: 2px; font-family: var(--font-space-mono), monospace; }
+.career-title { background: none; border: none; padding: 0; color: var(--text); font: inherit; font-weight: 500; cursor: pointer; text-align: left; }
+.career-title:hover { color: var(--sky); }
+.career-note { font-size: 12.5px; color: var(--muted-2); margin-top: 2px; }
+.career-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; font-size: 12px; }
+.career-linkbtn { background: none; border: none; padding: 0; font: inherit; font-size: 12px; cursor: pointer; }
+.career-email { font-family: var(--font-space-mono), monospace; font-size: 11px; color: var(--muted); }
+.career-draft { white-space: pre-wrap; font: inherit; font-size: 12.5px; color: var(--text); background: rgba(0,0,0,.25); border-radius: 8px; padding: 10px 12px; margin-top: 6px; line-height: 1.5; }
+.career-form { margin-top: 10px; display: flex; flex-direction: column; gap: 12px; }
+.career-add { display: block; margin-top: 10px; background: none; border: none; cursor: pointer; font: inherit; }
+.career-metric { flex: 0 0 120px; }
+.note-stream-time.overdue { color: var(--coral); }
+@media (max-width: 640px) { .career-gates { grid-template-columns: repeat(3, 1fr); } .career-metric { flex: 1 1 100px; } }
