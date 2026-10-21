@@ -448,7 +448,7 @@ export type CareerAppStatus = "to_apply" | "applied" | "interview" | "offer" | "
 export type CareerApp = {
   id: string; user_id: string; role: string; company: string; location: string | null; term: string | null;
   status: CareerAppStatus; url: string | null; notes: string | null; applied_on: string | null; heard_on: string | null;
-  source: "manual" | "agent"; created_at: string; updated_at: string;
+  source: "manual" | "agent"; position: number; created_at: string; updated_at: string;
 };
 
 export type CareerStage = "found" | "drafted" | "sent" | "replied" | "call" | "shadow";

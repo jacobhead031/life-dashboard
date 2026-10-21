@@ -1459,6 +1459,11 @@ export async function saveCareerApp(id: string, f: CareerAppEdit) {
   await ok(supabase.from("career_app").update(careerAppFields(f)).eq("id", id));
   revalidateCareer();
 }
+export async function reorderCareerApp(id: string, position: number) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_app").update({ position: num(position, "Position") }).eq("id", id));
+  revalidateCareer();
+}
 export async function deleteCareerApp(id: string) {
   const { supabase } = await authed();
   await ok(supabase.from("career_app").delete().eq("id", id));

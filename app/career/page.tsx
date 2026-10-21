@@ -16,7 +16,7 @@ export default async function CareerPage() {
   const week = weekMonday(today);
   const [{ data: todos }, { data: apps }, { data: contacts }, { data: wins }, { data: settings }] = await Promise.all([
     supabase.from("career_todo").select("*").gte("week", week).order("position"),
-    supabase.from("career_app").select("*").order("updated_at", { ascending: false }),
+    supabase.from("career_app").select("*").order("position").order("updated_at", { ascending: false }),
     supabase.from("career_contact").select("*").order("created_at", { ascending: false }),
     supabase.from("career_win").select("*").order("happened_on", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
     supabase.from("user_settings").select("sales_exp_since").maybeSingle(),

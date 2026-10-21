@@ -2368,3 +2368,4 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .career-standing { margin-top: 14px; padding-top: 10px; border-top: 1px dashed var(--line); }
 .career-standing-item { font-size: 12.5px; color: var(--muted); line-height: 1.6; padding-left: 10px; position: relative; }
 .career-standing-item::before { content: "↻"; position: absolute; left: -4px; color: var(--muted-2); font-size: 11px; }
+.career-rank { font-family: var(--font-space-grotesk), sans-serif; font-weight: 600; font-size: 15px; color: var(--amber); width: 18px; text-align: right; flex-shrink: 0; margin-top: 1px; }

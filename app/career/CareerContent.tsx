@@ -9,7 +9,7 @@ import { APP_STATUSES, CONTACT_STAGES, GATES, STANDING, WEEKLY_MESSAGE_TARGET, c
 import { addDays, weekMonday } from "@/lib/utils";
 import {
   addCareerApp, addCareerContact, addCareerTodo, addCareerWin, deleteCareerApp, deleteCareerContact, deleteCareerTodo, deleteCareerWin,
-  reorderCareerTodo, saveCareerApp, saveCareerContact, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
+  reorderCareerApp, reorderCareerTodo, saveCareerApp, saveCareerContact, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
 } from "@/app/actions";
 
 const STATUS_LABEL: Record<string, string> = { to_apply: "to apply", applied: "applied", interview: "interview", offer: "offer", watch: "watch", closed: "closed" };
@@ -42,7 +42,22 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
   }
   const gate = currentGate(today);
   const score = scorecard(contacts, weekStr, today, weekMonday, addDays);
-  const open = apps.filter((a) => a.status !== "closed");
+  // Ranked: open rows in drag order (1 = apply first); offers and closed rows sit below, unnumbered.
+  const [appsRaw, patchApp] = useOptimistic(apps, (list, p: Partial<CareerApp> & { id: string }) => list.map((a) => (a.id === p.id ? { ...a, ...p } : a)));
+  const ranked = appsRaw.filter((a) => !["closed", "offer"].includes(a.status)).sort((a, b) => a.position - b.position);
+  const parked = appsRaw.filter((a) => ["closed", "offer"].includes(a.status));
+  const open = appsRaw.filter((a) => a.status !== "closed");
+  function onAppDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const from = ranked.findIndex((a) => a.id === active.id);
+    const to = ranked.findIndex((a) => a.id === over.id);
+    if (from === -1 || to === -1) return;
+    const moved = arrayMove(ranked, from, to);
+    const prev = moved[to - 1]?.position;
+    const next = moved[to + 1]?.position;
+    const position = prev !== undefined && next !== undefined ? (prev + next) / 2 : prev !== undefined ? prev + 1 : next !== undefined ? next - 1 : 0;
+    startTransition(async () => { patchApp({ id: String(active.id), position }); await reorderCareerApp(String(active.id), position); });
+  }
   const live = contacts.filter((c) => !c.do_not_contact);
 
   if (apps.length === 0 && contacts.length === 0 && todos.length === 0) {
@@ -100,7 +115,12 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
       {/* ── Pipeline ── */}
       <section className="card span-6">
         <div className="card-label"><span>applications</span><span className="card-nav">{open.length} open</span></div>
-        {apps.map((a) => <AppRow key={a.id} app={a} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}
+        <DndContext id="career-app-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onAppDragEnd}>
+          <SortableContext items={ranked.map((a) => a.id)} strategy={verticalListSortingStrategy}>
+            {ranked.map((a, n) => <AppRow key={a.id} app={a} rank={n + 1} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}
+          </SortableContext>
+        </DndContext>
+        {parked.map((a) => <AppRow key={a.id} app={a} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}
         <AppForm busy={isPending} submit={(f) => run(() => addCareerApp(f))} />
       </section>
 
@@ -163,11 +183,15 @@ function QuickAdd({ placeholder, busy, submit }: { placeholder: string; busy: bo
 }
 
 // ── Applications ──
-function AppRow({ app: a, today, busy, save, remove }: { app: CareerApp; today: string; busy: boolean; save: (f: CareerAppEdit) => void; remove: () => void }) {
+function AppRow({ app: a, rank, today, busy, save, remove }: { app: CareerApp; rank?: number; today: string; busy: boolean; save: (f: CareerAppEdit) => void; remove: () => void }) {
   const [editing, setEditing] = useState(false);
+  const sortable = rank !== undefined;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: a.id, disabled: !sortable });
   if (editing) return <AppForm busy={busy} app={a} submit={(f) => { save(f); setEditing(false); }} cancel={() => setEditing(false)} />;
   return (
-    <div className={`note-stream-item career-row${a.status === "closed" ? " done" : ""}`}>
+    <div ref={setNodeRef} className={`note-stream-item career-row${a.status === "closed" ? " done" : ""}`} style={{ opacity: isDragging ? 0.7 : 1, transform: CSS.Transform.toString(transform), transition, ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}) }}>
+      <span className="todo-drag-handle" style={sortable ? undefined : { visibility: "hidden" }} {...(sortable ? { ...attributes, ...listeners } : {})}>⠿</span>
+      <span className="career-rank">{rank ?? ""}</span>
       <select className="dates-date career-select" value={a.status} disabled={busy} aria-label="Status" onChange={(e) => save({ status: e.target.value, ...(e.target.value === "applied" && !a.applied_on ? { applied_on: today } : {}) })}>
         {APP_STATUSES.map((s) => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}
       </select>
