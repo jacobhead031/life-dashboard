@@ -1497,3 +1497,8 @@ export async function setSalesExpSince(since: string | null) {
   await ok(supabase.from("user_settings").upsert({ user_id: user.id, sales_exp_since: optDate(since, "Start date") }, { onConflict: "user_id" }));
   revalidateCareer();
 }
+export async function reorderCareerTodo(id: string, position: number) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_todo").update({ position: num(position, "Position") }).eq("id", id));
+  revalidateCareer();
+}

@@ -1,22 +1,45 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useOptimistic, useState, useTransition } from "react";
+import { DndContext, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSensors, closestCenter, type DragEndEvent } from "@dnd-kit/core";
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import type { CareerApp, CareerContact, CareerTodo, CareerWin } from "@/lib/types";
 import { APP_STATUSES, CONTACT_STAGES, GATES, WEEKLY_MESSAGE_TARGET, currentGate, salesExpMonths, scorecard } from "@/lib/career";
 import { addDays, weekMonday } from "@/lib/utils";
 import {
   addCareerApp, addCareerContact, addCareerTodo, addCareerWin, deleteCareerApp, deleteCareerContact, deleteCareerTodo, deleteCareerWin,
-  saveCareerApp, saveCareerContact, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
+  reorderCareerTodo, saveCareerApp, saveCareerContact, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
 } from "@/app/actions";
 
 const STATUS_LABEL: Record<string, string> = { to_apply: "to apply", applied: "applied", interview: "interview", offer: "offer", watch: "watch", closed: "closed" };
 const shortDate = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
-export function CareerContent({ todos, apps, contacts, wins, salesExpSince, todayStr: today, weekStr }: {
+export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesExpSince, todayStr: today, weekStr }: {
   todos: CareerTodo[]; apps: CareerApp[]; contacts: CareerContact[]; wins: CareerWin[]; salesExpSince: string | null; todayStr: string; weekStr: string;
 }) {
   const [isPending, startTransition] = useTransition();
   const run = (fn: () => Promise<void>) => startTransition(async () => { await fn(); });
+  // Open ones in drag order, done ones sink to the bottom.
+  const [todosRaw, patchTodo] = useOptimistic(serverTodos, (list, p: Partial<CareerTodo> & { id: string }) => list.map((t) => (t.id === p.id ? { ...t, ...p } : t)));
+  const todos = [...todosRaw].sort((a, b) => Number(a.done) - Number(b.done) || a.position - b.position);
+  const openTodos = todos.filter((t) => !t.done);
+  const sensors = useSensors(
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 6 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+  function onDragEnd({ active, over }: DragEndEvent) {
+    if (!over || active.id === over.id) return;
+    const from = openTodos.findIndex((t) => t.id === active.id);
+    const to = openTodos.findIndex((t) => t.id === over.id);
+    if (from === -1 || to === -1) return;
+    const moved = arrayMove(openTodos, from, to);
+    const prev = moved[to - 1]?.position;
+    const next = moved[to + 1]?.position;
+    const position = prev !== undefined && next !== undefined ? (prev + next) / 2 : prev !== undefined ? prev + 1 : next !== undefined ? next - 1 : 0;
+    startTransition(async () => { patchTodo({ id: String(active.id), position }); await reorderCareerTodo(String(active.id), position); });
+  }
   const gate = currentGate(today);
   const score = scorecard(contacts, weekStr, today, weekMonday, addDays);
   const open = apps.filter((a) => a.status !== "closed");
@@ -37,13 +60,12 @@ export function CareerContent({ todos, apps, contacts, wins, salesExpSince, toda
       <section className="card span-3">
         <div className="card-label"><span>this week · {shortDate(weekStr)}</span><span className="card-nav">{todos.filter((t) => t.done).length}/{todos.length}</span></div>
         {todos.length === 0 && <div className="empty-state"><p>No priorities yet. The Sunday agent writes them; add your own below.</p></div>}
-        {todos.map((t) => (
-          <div key={t.id} className={`note-stream-item${t.done ? " done" : ""}`}>
-            <input type="checkbox" className="todo-check" checked={t.done} disabled={isPending} onChange={(e) => run(() => toggleCareerTodo(t.id, e.target.checked))} aria-label={t.text} />
-            <div className="note-stream-body">{t.text}</div>
-            <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={isPending} onClick={() => run(() => deleteCareerTodo(t.id))}>✕</button>
-          </div>
-        ))}
+        <DndContext id="career-todo-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+          <SortableContext items={openTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
+            {openTodos.map((t) => <TodoRow key={t.id} t={t} sortable busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
+          </SortableContext>
+        </DndContext>
+        {todos.filter((t) => t.done).map((t) => <TodoRow key={t.id} t={t} busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
         <QuickAdd placeholder="add a priority" busy={isPending} submit={(text) => run(() => addCareerTodo(weekStr, text))} />
       </section>
 
@@ -102,6 +124,18 @@ export function CareerContent({ todos, apps, contacts, wins, salesExpSince, toda
           <button type="submit" className="btn" disabled={isPending}>add</button>
         </form>
       </section>
+    </div>
+  );
+}
+
+function TodoRow({ t, sortable = false, busy, toggle, remove }: { t: CareerTodo; sortable?: boolean; busy: boolean; toggle: (on: boolean) => void; remove: () => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: t.id, disabled: !sortable });
+  return (
+    <div ref={setNodeRef} className={`note-stream-item${t.done ? " done" : ""}`} style={{ opacity: isDragging ? 0.7 : 1, transform: CSS.Transform.toString(transform), transition, ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}) }}>
+      <span className="todo-drag-handle" style={sortable ? undefined : { visibility: "hidden" }} {...(sortable ? { ...attributes, ...listeners } : {})}>⠿</span>
+      <input type="checkbox" className="todo-check" checked={t.done} disabled={busy} onChange={(e) => toggle(e.target.checked)} aria-label={t.text} />
+      <div className="note-stream-body">{t.text}</div>
+      <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={busy} onClick={remove}>✕</button>
     </div>
   );
 }
