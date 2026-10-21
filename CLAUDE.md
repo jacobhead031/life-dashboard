@@ -99,6 +99,20 @@ user_settings (+): partner_id uuid
 - "Coming up" = rows with `event_on`, sorted by date; "anytime" = the rest, drag-ordered by `position`.
 - Seed: `lib/date-ideas.json` via `seedDateIdeas` (only when the pair has no rows). `~/health-coach/date_events.py` runs every Sunday 7 pm (`jobs.py dates`): deletes `seed`/`weekly` rows whose `event_until` has passed and nobody did, then `claude -p` with web search adds the next 30 days of free/cheap Toronto events as `source = weekly`.
 
+### `career_*` — Career (`/career`)
+```sql
+career_todo: id, user_id, week date (Monday), text, done, position
+career_app: id, user_id, role, company, location, term, status (to_apply|applied|interview|offer|watch|closed),
+  url, notes, applied_on, heard_on, source (manual|agent), created_at, updated_at
+career_contact: id, user_id, name, role, company, why, channel (email|linkedin), stage (found|drafted|sent|replied|call|shadow),
+  email, linkedin_url, draft (the note to send), sent_on, followup_sent, next_followup, last_touch, do_not_contact, source
+career_win: id, user_id, happened_on, text, metric   -- brag book
+user_settings (+): sales_exp_since date  -- months of sales-facing experience count from here
+```
+- Plan and gates are constants in `lib/career.ts` (`GATES`, `WEEKLY_MESSAGE_TARGET`); scorecard is derived from `career_contact` (`sent_on` sets the streak and the weekly count; marking a contact `sent` stamps `sent_on` and a follow-up 7 days out).
+- Seed: `lib/career-seed.json` via `seedCareer` (only when no `career_app` rows exist). Home card `career` shows this week's `career_todo`.
+- **Sunday 10 am agent:** `~/health-coach/career_agent.py` (`jobs.py career`): job scan → `career_app` (`source = agent`, flips `watch` rows), ~5 contacts/week with a drafted note → `career_contact` (`stage = drafted`, LinkedIn-only; it never touches a mailbox), follow-up notes, 3–5 `career_todo` for the coming week, then the "Career week of YYYY-MM-DD" brief to Jacob. A reply to that brief is logged to `career_win` by `coach_email.py`'s poller. `do_not_contact` is absolute.
+
 ### `tri_*` — triathlon coach (`/coach`)
 ```sql
 tri_profile: user_id (pk), race_date, goal_s/floor_s/stretch_s int (seconds), ftp_watts, css_s_100m,
