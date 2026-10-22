@@ -2369,3 +2369,7 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .career-standing-item { font-size: 12.5px; color: var(--muted); line-height: 1.6; padding-left: 10px; position: relative; }
 .career-standing-item::before { content: "↻"; position: absolute; left: -4px; color: var(--muted-2); font-size: 11px; }
 .career-rank { font-family: var(--font-space-grotesk), sans-serif; font-weight: 600; font-size: 15px; color: var(--amber); width: 18px; text-align: right; flex-shrink: 0; margin-top: 1px; }
+.career-next { padding: 6px 0 2px; }
+.career-next-text { font-family: var(--font-space-grotesk), sans-serif; font-size: 18px; font-weight: 600; line-height: 1.35; margin-top: 4px; }
+.career-next-more { font-family: var(--font-space-mono), monospace; font-size: 11px; color: var(--muted-2); margin-top: 6px; }
+.career-next-row { color: var(--text); font-weight: 500; }

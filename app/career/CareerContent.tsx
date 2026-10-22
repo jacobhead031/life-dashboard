@@ -73,11 +73,11 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
     <div className="grid-bento career">
       {/* ── This week ── */}
       <section className="card span-3">
-        <div className="card-label"><span>this week · {shortDate(weekStr)}</span><span className="card-nav">{todos.filter((t) => t.done).length}/{todos.length}</span></div>
+        <div className="card-label"><span>this week · {shortDate(weekStr)}</span><span className="card-nav">{todos.filter((t) => t.done).length}/{todos.length} · do them in order</span></div>
         {todos.length === 0 && <div className="empty-state"><p>No priorities yet. The Sunday agent writes them; add your own below.</p></div>}
         <DndContext id="career-todo-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
           <SortableContext items={openTodos.map((t) => t.id)} strategy={verticalListSortingStrategy}>
-            {openTodos.map((t) => <TodoRow key={t.id} t={t} sortable busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
+            {openTodos.map((t, n) => <TodoRow key={t.id} t={t} n={n + 1} sortable busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
           </SortableContext>
         </DndContext>
         {todos.filter((t) => t.done).map((t) => <TodoRow key={t.id} t={t} busy={isPending} toggle={(on) => startTransition(async () => { patchTodo({ id: t.id, done: on }); await toggleCareerTodo(t.id, on); })} remove={() => run(() => deleteCareerTodo(t.id))} />)}
@@ -152,13 +152,14 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
   );
 }
 
-function TodoRow({ t, sortable = false, busy, toggle, remove }: { t: CareerTodo; sortable?: boolean; busy: boolean; toggle: (on: boolean) => void; remove: () => void }) {
+function TodoRow({ t, n, sortable = false, busy, toggle, remove }: { t: CareerTodo; n?: number; sortable?: boolean; busy: boolean; toggle: (on: boolean) => void; remove: () => void }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: t.id, disabled: !sortable });
   return (
     <div ref={setNodeRef} className={`note-stream-item${t.done ? " done" : ""}`} style={{ opacity: isDragging ? 0.7 : 1, transform: CSS.Transform.toString(transform), transition, ...(isDragging ? { position: "relative" as const, zIndex: 1 } : {}) }}>
       <span className="todo-drag-handle" style={sortable ? undefined : { visibility: "hidden" }} {...(sortable ? { ...attributes, ...listeners } : {})}>⠿</span>
+      <span className="career-rank">{n ?? ""}</span>
       <input type="checkbox" className="todo-check" checked={t.done} disabled={busy} onChange={(e) => toggle(e.target.checked)} aria-label={t.text} />
-      <div className="note-stream-body">{t.text}</div>
+      <div className={`note-stream-body${n === 1 ? " career-next-row" : ""}`}>{t.text}</div>
       <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={busy} onClick={remove}>✕</button>
     </div>
   );

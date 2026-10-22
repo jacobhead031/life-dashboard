@@ -168,7 +168,7 @@ export default async function HomePage() {
     supabase.from("life_move_log").select("goal_id, move").eq("done_on", today).limit(1).maybeSingle(),
     supabase.from("journal_log").select("date"),
     supabase.from("tri_session").select("*").gte("date", weekStr).lte("date", addDays(weekStr, 6)).order("date").order("slot"),
-    supabase.from("career_todo").select("*").eq("week", weekStr).order("position"),
+    supabase.from("career_todo").select("*").gte("week", weekStr).order("week").order("position"),
   ]);
 
   // Derive finished-this-year count for books card label
