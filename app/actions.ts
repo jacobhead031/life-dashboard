@@ -1491,6 +1491,11 @@ export async function addCareerWin(text: string, metric: string | null, happened
   await ok(supabase.from("career_win").insert({ user_id: user.id, text: str(text, "Win", 500), metric: optText(metric, "Metric", 100), happened_on: optDate(happenedOn, "Date") }));
   revalidateCareer();
 }
+export async function saveCareerWin(id: string, text: string, metric: string | null, happenedOn: string | null) {
+  const { supabase } = await authed();
+  await ok(supabase.from("career_win").update({ text: str(text, "Win", 500), metric: optText(metric, "Metric", 100), happened_on: optDate(happenedOn, "Date") }).eq("id", id));
+  revalidateCareer();
+}
 export async function deleteCareerWin(id: string) {
   const { supabase } = await authed();
   await ok(supabase.from("career_win").delete().eq("id", id));

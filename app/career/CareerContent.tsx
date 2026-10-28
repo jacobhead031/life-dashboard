@@ -9,7 +9,7 @@ import { APP_STATUSES, CONTACT_STAGES, GATES, STANDING, WEEKLY_MESSAGE_TARGET, c
 import { addDays, weekMonday } from "@/lib/utils";
 import {
   addCareerApp, addCareerContact, addCareerTodo, addCareerWin, deleteCareerApp, deleteCareerContact, deleteCareerTodo, deleteCareerWin,
-  reorderCareerApp, reorderCareerTodo, saveCareerApp, saveCareerContact, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
+  reorderCareerApp, reorderCareerTodo, saveCareerApp, saveCareerContact, saveCareerWin, seedCareer, setSalesExpSince, toggleCareerTodo, type CareerAppEdit, type CareerContactEdit,
 } from "@/app/actions";
 
 const STATUS_LABEL: Record<string, string> = { to_apply: "to apply", applied: "applied", interview: "interview", offer: "offer", watch: "watch", closed: "closed" };
@@ -134,13 +134,7 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
       {/* ── Brag book ── */}
       <section className="card span-6">
         <div className="card-label"><span>brag book</span><span className="card-nav">{wins.length}</span></div>
-        {wins.map((w) => (
-          <div key={w.id} className="note-stream-item">
-            <div className="note-stream-body">{w.text}{w.metric && <span className="todo-tag">{w.metric}</span>}</div>
-            <div className="note-stream-time">{w.happened_on ? shortDate(w.happened_on) : ""}</div>
-            <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={isPending} onClick={() => run(() => deleteCareerWin(w.id))}>✕</button>
-          </div>
-        ))}
+        {wins.map((w) => <WinRow key={w.id} w={w} today={today} busy={isPending} save={(t, m, on) => run(() => saveCareerWin(w.id, t, m, on))} remove={() => run(() => deleteCareerWin(w.id))} />)}
         <form className="quick-add-row" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const text = String(f.get("text")).trim(); if (!text) return; run(() => addCareerWin(text, String(f.get("metric")) || null, String(f.get("on")) || null)); e.currentTarget.reset(); }}>
           <input className="quick-add-input" name="text" placeholder="a win (with a number if there is one)" maxLength={500} required />
           <input className="quick-add-input career-metric" name="metric" placeholder="number" maxLength={100} />
@@ -160,6 +154,33 @@ function TodoRow({ t, n, sortable = false, busy, toggle, remove }: { t: CareerTo
       <span className="career-rank">{n ?? ""}</span>
       <input type="checkbox" className="todo-check" checked={t.done} disabled={busy} onChange={(e) => toggle(e.target.checked)} aria-label={t.text} />
       <div className={`note-stream-body${n === 1 ? " career-next-row" : ""}`}>{t.text}</div>
+      <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={busy} onClick={remove}>✕</button>
+    </div>
+  );
+}
+
+// ── Brag book ──
+function WinRow({ w, today, busy, save, remove }: { w: CareerWin; today: string; busy: boolean; save: (text: string, metric: string | null, on: string | null) => void; remove: () => void }) {
+  const [editing, setEditing] = useState(false);
+  if (editing) {
+    return (
+      <form className="add-panel career-form" onSubmit={(e) => { e.preventDefault(); const f = new FormData(e.currentTarget); const text = String(f.get("text")).trim(); if (!text) return; save(text, String(f.get("metric")).trim() || null, String(f.get("on")) || null); setEditing(false); }}>
+        <div className="d-field"><label>win</label><textarea name="text" required maxLength={500} defaultValue={w.text} placeholder="what happened, with the details you want to remember" /></div>
+        <div className="dates-grid">
+          <div className="d-field"><label>number</label><input name="metric" maxLength={100} defaultValue={w.metric ?? ""} placeholder="1:41:28, 40 students, $x" /></div>
+          <div className="d-field"><label>date</label><input name="on" type="date" max={today} defaultValue={w.happened_on ?? ""} /></div>
+        </div>
+        <div className="gd-actions">
+          <button type="submit" className="btn primary" disabled={busy}>save</button>
+          <button type="button" className="d-btn" onClick={() => setEditing(false)}>cancel</button>
+        </div>
+      </form>
+    );
+  }
+  return (
+    <div className="note-stream-item">
+      <div className="note-stream-body"><button type="button" className="career-title" onClick={() => setEditing(true)}>{w.text}</button>{w.metric && <span className="todo-tag">{w.metric}</span>}</div>
+      <div className="note-stream-time">{w.happened_on ? shortDate(w.happened_on) : ""}</div>
       <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={busy} onClick={remove}>✕</button>
     </div>
   );
