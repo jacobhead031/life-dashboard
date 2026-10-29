@@ -3,7 +3,7 @@ import type { TriLiftSet } from "./types";
 export type Exercise = { name: string; sets: number; reps: number; rpe: string; note: string; bodyweight: boolean };
 
 const LOWER = /squat|deadlift|rdl|lunge/i;
-const BODYWEIGHT = /chin-up|pull-up|plank|dead bug|knee raise|pallof/i;
+const BODYWEIGHT = /chin-up|pull-up|push-up|plank|dead bug|knee raise|pallof|crunch/i;
 
 /** Exercises from the session's structure text ("- Back squat (13 min): 4 x 5 @ RPE 7-8, rest 2:30 ...").
  *  A superset line becomes one exercise per lift with sets = rounds. */
