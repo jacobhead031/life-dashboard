@@ -28,6 +28,9 @@ const COSTS = ["free", "$", "$$", "$$$"] as const;
 const DURATIONS = ["1h", "evening", "half day", "full day"] as const;
 const CATEGORIES = ["food", "drinks", "outdoors", "indoors", "walk", "event", "music", "movie", "theatre", "comedy", "sports", "game", "make", "active", "trip", "home", "costume", "scary", "market", "other"];
 
+const PLACES = { restaurant: "restaurants", cafe: "coffee shops" } as const;
+const beenLabel = (k: DateIdea["kind"]) => (k === "restaurant" ? "ate here" : k === "cafe" ? "been here" : "we did this");
+
 const longDate = (d: string) =>
   new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -41,6 +44,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const [duration, setDuration] = useState<string>("");
   const [starred, setStarred] = useState(false);
   const [eaten, setEaten] = useState<"" | "been" | "not">("");
+  const [place, setPlace] = useState<keyof typeof PLACES>("restaurant");
   const [openId, setOpenId] = useState<string | null>(null);
   const [adding, setAdding] = useState(false);
   const dialog = useRef<HTMLDialogElement>(null);
@@ -52,8 +56,8 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const update = (p: Patch, write: () => Promise<void>) => startTransition(async () => { patch(p); await write(); });
 
   const matches = (i: DateIdea) => (!cost || i.cost === cost) && (!duration || i.duration === duration) && (!starred || i.want_more);
-  const activities = ideas.filter((i) => i.kind !== "restaurant");
-  const restaurants = ideas.filter((i) => i.kind === "restaurant");
+  const activities = ideas.filter((i) => i.kind === "activity");
+  const restaurants = ideas.filter((i) => i.kind === place); // restaurants or cafes, whichever sub-tab is on
   const todo = activities.filter((i) => !i.done_on);
   const done = activities.filter((i) => i.done_on).sort((a, b) => (b.done_on! > a.done_on! ? 1 : -1));
   // ★ means "we really want this": starred rows sit above everything else in both lists.
@@ -131,7 +135,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
         <button type="button" className="btn primary" onClick={() => setAdding((a) => !a)}>{adding ? "close" : "+ idea"}</button>
       </div>
 
-      {adding && <AddForm busy={isPending} initialKind={view === "food" ? "restaurant" : "activity"} submit={(f) => startTransition(async () => { await addDateIdea(f); setAdding(false); })} />}
+      {adding && <AddForm busy={isPending} initialKind={view === "food" ? place : "activity"} submit={(f) => startTransition(async () => { await addDateIdea(f); setAdding(false); })} />}
 
       <div className="dates-filters">
         <div className="dates-seg" role="tablist">
@@ -141,6 +145,13 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
             </button>
           ))}
         </div>
+        {view === "food" && (
+          <div className="dates-seg" role="tablist">
+            {(Object.keys(PLACES) as (keyof typeof PLACES)[]).map((p) => (
+              <button key={p} type="button" role="tab" aria-selected={place === p} className={place === p ? "on" : ""} onClick={() => setPlace(p)}>{PLACES[p]}</button>
+            ))}
+          </div>
+        )}
         {view === "food" && (
           <div className="dates-seg">
             <button type="button" className={eaten === "" ? "on" : ""} onClick={() => setEaten("")}>all</button>
@@ -197,7 +208,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
 
       {view === "food" && (
         <section>
-          {food.length === 0 && <p className="life-none">No restaurants match. Hit + idea and pick restaurant, or loosen the filters.</p>}
+          {food.length === 0 && <p className="life-none">No {PLACES[place]} match. Hit + idea and pick {place === "cafe" ? "coffee shop" : "restaurant"}, or loosen the filters.</p>}
           {eaten !== "not" && been.length > 0 && (
             <>
               <div className="life-cat">been, best to worst</div>
@@ -258,13 +269,13 @@ function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, tog
 }) {
   return (
     <>
-      <input type="checkbox" className="todo-check" checked={!!i.done_on} disabled={disabled} onChange={(e) => toggleDone(e.target.checked)} aria-label={`Mark ${i.title} ${i.done_on ? "not done" : "done"}`} title={i.kind === "restaurant" ? "ate here" : "we did this"} />
+      <input type="checkbox" className="todo-check" checked={!!i.done_on} disabled={disabled} onChange={(e) => toggleDone(e.target.checked)} aria-label={`Mark ${i.title} ${i.done_on ? "not done" : "done"}`} title={beenLabel(i.kind)} />
       <button type="button" className="dates-title" onClick={open}>
         <span>{i.title}</span>
         <span className="dates-chips">
           {i.event_on && <span className="dates-chip when">{longDate(i.event_on)}{i.event_until && i.event_until !== i.event_on ? ` – ${longDate(i.event_until)}` : ""}</span>}
           <span className="dates-chip">{i.cost}</span>
-          {i.kind !== "restaurant" && <span className="dates-chip">{i.duration}</span>}
+          {i.kind === "activity" && <span className="dates-chip">{i.duration}</span>}
           <span className="dates-chip">{i.category}</span>
           {i.done_on && <span className="dates-chip when">{avg !== null ? `${avg.toFixed(1)}/10` : "unrated"} · {n ? `${n} photos` : "no photos"}</span>}
         </span>
@@ -281,18 +292,19 @@ function RowBody({ idea: i, n, avg, mine, score, disabled, open, toggleDone, tog
   );
 }
 
-function AddForm({ busy, initialKind, submit }: { busy: boolean; initialKind: "activity" | "restaurant"; submit: (f: DateIdeaEdit) => void }) {
-  const [kind, setKind] = useState<"activity" | "restaurant">(initialKind);
-  const restaurant = kind === "restaurant";
+function AddForm({ busy, initialKind, submit }: { busy: boolean; initialKind: DateIdea["kind"]; submit: (f: DateIdeaEdit) => void }) {
+  const [kind, setKind] = useState<DateIdea["kind"]>(initialKind);
+  const place = kind !== "activity";
+  const cafe = kind === "cafe";
   return (
     <form
       className="add-panel"
       onSubmit={(e) => {
         e.preventDefault();
         const f = new FormData(e.currentTarget);
-        submit(restaurant ? {
+        submit(place ? {
           kind, title: String(f.get("title")), note: String(f.get("note")) || null, url: String(f.get("url")) || null,
-          category: String(f.get("cuisine")).trim() || "food", cost: String(f.get("cost")), duration: "evening",
+          category: String(f.get("cuisine")).trim() || (cafe ? "coffee" : "food"), cost: String(f.get("cost")), duration: "evening",
         } : {
           kind, title: String(f.get("title")), note: String(f.get("note")) || null, url: String(f.get("url")) || null,
           category: String(f.get("category")), cost: String(f.get("cost")), duration: String(f.get("duration")),
@@ -301,14 +313,15 @@ function AddForm({ busy, initialKind, submit }: { busy: boolean; initialKind: "a
       }}
     >
       <div className="dates-seg">
-        <button type="button" className={restaurant ? "" : "on"} onClick={() => setKind("activity")}>activity</button>
-        <button type="button" className={restaurant ? "on" : ""} onClick={() => setKind("restaurant")}>restaurant</button>
+        <button type="button" className={place ? "" : "on"} onClick={() => setKind("activity")}>activity</button>
+        <button type="button" className={kind === "restaurant" ? "on" : ""} onClick={() => setKind("restaurant")}>restaurant</button>
+        <button type="button" className={cafe ? "on" : ""} onClick={() => setKind("cafe")}>coffee shop</button>
       </div>
-      <div className="d-field"><label htmlFor="di-title">{restaurant ? "restaurant" : "idea"}</label><input id="di-title" name="title" required maxLength={200} placeholder={restaurant ? "Pai, 18 Duncan St" : "Skate at Nathan Phillips"} autoFocus /></div>
+      <div className="d-field"><label htmlFor="di-title">{cafe ? "coffee shop" : place ? "restaurant" : "idea"}</label><input id="di-title" name="title" required maxLength={200} placeholder={cafe ? "Dineen, 140 Yonge St" : place ? "Pai, 18 Duncan St" : "Skate at Nathan Phillips"} autoFocus /></div>
       <div className="dates-grid">
         <div className="d-field"><label htmlFor="di-cost">cost</label><select id="di-cost" name="cost" defaultValue="$">{COSTS.map((c) => <option key={c}>{c}</option>)}</select></div>
-        {restaurant ? (
-          <div className="d-field"><label htmlFor="di-cuisine">cuisine</label><input id="di-cuisine" name="cuisine" maxLength={30} placeholder="thai" /></div>
+        {place ? (
+          <div className="d-field"><label htmlFor="di-cuisine">{cafe ? "known for" : "cuisine"}</label><input id="di-cuisine" name="cuisine" maxLength={30} placeholder={cafe ? "flat whites" : "thai"} /></div>
         ) : (
           <>
             <div className="d-field"><label htmlFor="di-dur">time</label><select id="di-dur" name="duration" defaultValue="evening">{DURATIONS.map((d) => <option key={d}>{d}</option>)}</select></div>
@@ -317,7 +330,7 @@ function AddForm({ busy, initialKind, submit }: { busy: boolean; initialKind: "a
           </>
         )}
       </div>
-      <div className="d-field"><label htmlFor="di-note">note</label><input id="di-note" name="note" maxLength={2000} placeholder={restaurant ? "neighbourhood, what to order, who recommended it" : "why, where, what to bring"} /></div>
+      <div className="d-field"><label htmlFor="di-note">note</label><input id="di-note" name="note" maxLength={2000} placeholder={place ? "neighbourhood, what to order, who recommended it" : "why, where, what to bring"} /></div>
       <div className="d-field"><label htmlFor="di-url">link</label><input id="di-url" name="url" type="url" placeholder="https://" /></div>
       <div className="gd-actions"><button type="submit" className="btn primary" disabled={busy}>add</button></div>
     </form>
@@ -330,7 +343,8 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
   removeMedia: (m: Media) => void; remove: () => void; close: () => void;
 }) {
   const [editing, setEditing] = useState(false);
-  const restaurant = i.kind === "restaurant";
+  const place = i.kind !== "activity";
+  const cafe = i.kind === "cafe";
   const [progress, setProgress] = useState<string | null>(null);
   const [errors, setErrors] = useState<string[]>([]);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -368,7 +382,7 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
     <div className="gd-body">
       <div className="album-head">
         <div>
-          <div className="life-kicker">{i.done_on ? `${restaurant ? "ate here" : "done"} ${longDate(i.done_on)}` : i.event_on ? longDate(i.event_on) : restaurant ? "to try" : "idea"} · {i.cost}{restaurant ? "" : ` · ${i.duration}`} · {i.category}</div>
+          <div className="life-kicker">{i.done_on ? `${place ? beenLabel(i.kind) : "done"} ${longDate(i.done_on)}` : i.event_on ? longDate(i.event_on) : place ? "to try" : "idea"} · {i.cost}{place ? "" : ` · ${i.duration}`} · {i.category}</div>
           <h2 className="album-title">{i.title}</h2>
         </div>
         <button type="button" className="gd-close" style={{ position: "static" }} aria-label="Close" onClick={close}>✕</button>
@@ -380,9 +394,9 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
           onSubmit={(e) => {
             e.preventDefault();
             const f = new FormData(e.currentTarget);
-            save(restaurant ? {
+            save(place ? {
               title: String(f.get("title")), note: String(f.get("note")) || null, url: String(f.get("url")) || null,
-              category: String(f.get("cuisine")).trim() || "food", cost: String(f.get("cost")),
+              category: String(f.get("cuisine")).trim() || (cafe ? "coffee" : "food"), cost: String(f.get("cost")),
             } : {
               title: String(f.get("title")), note: String(f.get("note")) || null, url: String(f.get("url")) || null,
               category: String(f.get("category")), cost: String(f.get("cost")), duration: String(f.get("duration")),
@@ -391,11 +405,11 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
             setEditing(false);
           }}
         >
-          <div className="d-field"><label htmlFor="de-title">{restaurant ? "restaurant" : "idea"}</label><input id="de-title" name="title" required maxLength={200} defaultValue={i.title} /></div>
+          <div className="d-field"><label htmlFor="de-title">{cafe ? "coffee shop" : place ? "restaurant" : "idea"}</label><input id="de-title" name="title" required maxLength={200} defaultValue={i.title} /></div>
           <div className="dates-grid">
             <div className="d-field"><label htmlFor="de-cost">cost</label><select id="de-cost" name="cost" defaultValue={i.cost}>{COSTS.map((c) => <option key={c}>{c}</option>)}</select></div>
-            {restaurant ? (
-              <div className="d-field"><label htmlFor="de-cuisine">cuisine</label><input id="de-cuisine" name="cuisine" maxLength={30} defaultValue={i.category} /></div>
+            {place ? (
+              <div className="d-field"><label htmlFor="de-cuisine">{cafe ? "known for" : "cuisine"}</label><input id="de-cuisine" name="cuisine" maxLength={30} defaultValue={i.category} /></div>
             ) : (<>
             <div className="d-field"><label htmlFor="de-dur">time</label><select id="de-dur" name="duration" defaultValue={i.duration}>{DURATIONS.map((d) => <option key={d}>{d}</option>)}</select></div>
             <div className="d-field"><label htmlFor="de-cat">type</label><select id="de-cat" name="category" defaultValue={CATEGORIES.includes(i.category) ? i.category : "other"}>{CATEGORIES.map((c) => <option key={c}>{c}</option>)}</select></div>
@@ -415,7 +429,7 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
           {i.note && <p className="dates-note">{i.note}</p>}
           {i.url && <a className="dates-link" href={i.url} target="_blank" rel="noreferrer">{i.url.replace(/^https?:\/\/(www\.)?/, "").split("/")[0]} ↗</a>}
           <div className="gd-actions">
-            <label className="gd-check"><input type="checkbox" checked={!!i.done_on} disabled={busy} onChange={(e) => toggleDone(e.target.checked)} /> {restaurant ? "ate here" : "we did this"}</label>
+            <label className="gd-check"><input type="checkbox" checked={!!i.done_on} disabled={busy} onChange={(e) => toggleDone(e.target.checked)} /> {beenLabel(i.kind)}</label>
             {i.done_on && (
               <label className="gd-check">on <input type="date" className="dates-date" value={i.done_on} max={today} disabled={busy} aria-label="Date we did it" onChange={(e) => { if (e.target.value) save({ done_on: e.target.value }); }} /></label>
             )}
@@ -442,7 +456,7 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
           </div>
 
           <div className="gd-actions">
-            <button type="button" className="btn primary" disabled={!!progress} onClick={() => fileInput.current?.click()}>{progress ?? (restaurant ? "add photos of the food" : "add photos & videos")}</button>
+            <button type="button" className="btn primary" disabled={!!progress} onClick={() => fileInput.current?.click()}>{progress ?? (cafe ? "add photos" : place ? "add photos of the food" : "add photos & videos")}</button>
             <input ref={fileInput} type="file" accept="image/*,video/*" multiple hidden onChange={(e) => { upload(Array.from(e.target.files ?? [])); e.target.value = ""; }} />
           </div>
           {errors.map((msg) => <p key={msg} className="gd-error" role="alert">{msg}</p>)}
@@ -464,7 +478,7 @@ function IdeaDetail({ idea: i, media, scores, userId, today, busy, save, toggleS
 
           <div className="album-notes">
             <div className="life-kicker">review</div>
-            <textarea defaultValue={i.review ?? ""} placeholder={restaurant ? "What we ordered, what was good, would we go back?" : "How was it? Would we go back?"} aria-label="Review" maxLength={20000}
+            <textarea defaultValue={i.review ?? ""} placeholder={place ? "What we ordered, what was good, would we go back?" : "How was it? Would we go back?"} aria-label="Review" maxLength={20000}
               onBlur={(e) => { if (e.target.value !== (i.review ?? "")) saveReview(e.target.value); }} />
           </div>
         </>

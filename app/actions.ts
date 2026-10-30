@@ -1276,7 +1276,7 @@ export type DateIdeaEdit = {
 
 function dateIdeaFields(f: DateIdeaEdit) {
   const row: Record<string, unknown> = {};
-  if (f.kind !== undefined) { if (f.kind !== "activity" && f.kind !== "restaurant") throw new Error("Kind is not valid"); row.kind = f.kind; }
+  if (f.kind !== undefined) { if (!["activity", "restaurant", "cafe"].includes(f.kind)) throw new Error("Kind is not valid"); row.kind = f.kind; }
   if (f.title !== undefined) row.title = str(f.title, "Title", 200);
   if (f.note !== undefined) row.note = cap(f.note, "Note", 2000)?.trim() || null;
   if (f.url !== undefined) row.url = f.url && /^https?:\/\/\S{1,900}$/.test(f.url.trim()) ? f.url.trim() : null;
