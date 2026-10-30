@@ -42,10 +42,11 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
   }
   const gate = currentGate(today);
   const score = scorecard(contacts, weekStr, today, weekMonday, addDays);
-  // Ranked: open rows in drag order (1 = apply first); offers and closed rows sit below, unnumbered.
+  // Ranked: "to apply" rows in drag order (1 = apply first). Everything else drops below, grouped by status, so an
+  // application leaves the queue the moment its status changes.
   const [appsRaw, patchApp] = useOptimistic(apps, (list, p: Partial<CareerApp> & { id: string }) => list.map((a) => (a.id === p.id ? { ...a, ...p } : a)));
-  const ranked = appsRaw.filter((a) => !["closed", "offer"].includes(a.status)).sort((a, b) => a.position - b.position);
-  const parked = appsRaw.filter((a) => ["closed", "offer"].includes(a.status));
+  const ranked = appsRaw.filter((a) => a.status === "to_apply").sort((a, b) => a.position - b.position);
+  const appGroups = APP_STATUSES.filter((s) => s !== "to_apply").map((s) => [s, appsRaw.filter((a) => a.status === s).sort((a, b) => a.position - b.position)] as const).filter(([, l]) => l.length);
   const open = appsRaw.filter((a) => a.status !== "closed");
   function onAppDragEnd({ active, over }: DragEndEvent) {
     if (!over || active.id === over.id) return;
@@ -59,6 +60,9 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
     startTransition(async () => { patchApp({ id: String(active.id), position }); await reorderCareerApp(String(active.id), position); });
   }
   const live = contacts.filter((c) => !c.do_not_contact);
+  // Outreach: the notes still to send sit on top, then the ones waiting on a reply, then the rest by stage.
+  const contactGroups = [...["drafted", "sent", "replied", "call", "shadow", "found"].map((s) => [s, live.filter((c) => c.stage === s)] as const),
+    ["do not contact", contacts.filter((c) => c.do_not_contact)] as const].filter(([, l]) => l.length);
 
   if (apps.length === 0 && contacts.length === 0 && todos.length === 0) {
     return (
@@ -120,14 +124,14 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
             {ranked.map((a, n) => <AppRow key={a.id} app={a} rank={n + 1} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}
           </SortableContext>
         </DndContext>
-        {parked.map((a) => <AppRow key={a.id} app={a} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}
+        {appGroups.map(([s, list]) => <div key={s}><p className="coach-meta career-group">{STATUS_LABEL[s]}</p>{list.map((a) => <AppRow key={a.id} app={a} today={today} busy={isPending} save={(f) => run(() => saveCareerApp(a.id, f))} remove={() => run(() => deleteCareerApp(a.id))} />)}</div>)}
         <AppForm busy={isPending} submit={(f) => run(() => addCareerApp(f))} />
       </section>
 
       {/* ── Outreach ── */}
       <section className="card span-6">
         <div className="card-label"><span>outreach</span><span className="card-nav">{live.filter((c) => c.stage === "sent").length} waiting · {live.filter((c) => c.stage === "drafted").length} drafted</span></div>
-        {contacts.map((c) => <ContactRow key={c.id} c={c} today={today} busy={isPending} save={(f) => run(() => saveCareerContact(c.id, f))} remove={() => run(() => deleteCareerContact(c.id))} />)}
+        {contactGroups.map(([s, list]) => <div key={s}><p className="coach-meta career-group">{s}</p>{list.map((c) => <ContactRow key={c.id} c={c} today={today} busy={isPending} save={(f) => run(() => saveCareerContact(c.id, f))} remove={() => run(() => deleteCareerContact(c.id))} />)}</div>)}
         <ContactForm busy={isPending} submit={(f) => run(() => addCareerContact(f))} />
       </section>
 

@@ -2243,6 +2243,7 @@ button.goal-card:focus-visible { outline: 2px solid var(--ochre); outline-offset
 .coach-session-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: 14px; }
 .coach-sport { font-size: 16px; }
 .coach-meta { font-size: 12px; color: var(--muted); }
+.career-group { margin: 12px 0 2px; text-transform: uppercase; letter-spacing: 0.06em; font-size: 11px; }
 .coach-status { margin-left: auto; font-family: var(--font-space-mono), monospace; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; color: var(--chip); }
 .coach-why { margin: 6px 0 0; font-size: 13px; color: var(--muted); }
 .coach-steps { margin: 8px 0 0; font-family: var(--font-space-mono), monospace; font-size: 12px; line-height: 1.5; color: var(--text); white-space: pre-wrap; }
