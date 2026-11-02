@@ -318,7 +318,7 @@ function ContactForm({ busy, c, submit, cancel }: { busy: boolean; c?: CareerCon
         <div className="d-field"><label>next follow-up</label><input name="next_followup" type="date" defaultValue={c?.next_followup ?? ""} /></div>
       </div>
       <div className="d-field"><label>why they matter</label><input name="why" maxLength={500} defaultValue={c?.why ?? ""} placeholder="shared school, specialty, a recent move into the role" /></div>
-      <div className="d-field"><label>message</label><textarea name="draft" maxLength={5000} defaultValue={c?.draft ?? ""} placeholder="Hi [Name] — I'm a Human Biology co-op student at U of T Scarborough working toward…" /></div>
+      <div className="d-field"><label>message</label><textarea name="draft" maxLength={5000} defaultValue={c?.draft ?? ""} placeholder="Hi [Name] — I'm a Human Biology co-op student at U of T working toward…" /></div>
       <div className="gd-actions">
         <label className="gd-check"><input type="checkbox" name="dnc" defaultChecked={c?.do_not_contact} /> do not contact (the agent never drafts to them)</label>
         <button type="submit" className="btn primary" disabled={busy}>{c ? "save" : "add"}</button>
