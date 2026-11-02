@@ -287,9 +287,11 @@ function ContactRow({ c, today, busy, save, remove }: { c: CareerContact; today:
           {c.linkedin_url && <a className="dates-link" href={c.linkedin_url} target="_blank" rel="noreferrer">linkedin ↗</a>}
           {c.email && <span className="career-email">{c.email}</span>}
           {c.draft && <button type="button" className="dates-link career-linkbtn" onClick={copyDraft}>{copied ? "copied" : `copy ${c.channel === "email" ? "email" : "note"}`}</button>}
-          {c.draft && <button type="button" className="dates-link career-linkbtn" onClick={() => setShowDraft((s) => !s)}>{showDraft ? "hide" : "show"}</button>}
+          <button type="button" className="dates-link career-linkbtn" onClick={() => setShowDraft((s) => !s)}>{showDraft ? "hide" : c.draft ? "show" : "add message"}</button>
         </div>
-        {showDraft && c.draft && <pre className="career-draft">{c.draft}</pre>}
+        {/* Editable in place: paste the message to send once they accept the connection; saves on blur. */}
+        {showDraft && <textarea className="career-draft career-draft-edit" defaultValue={c.draft ?? ""} maxLength={5000} disabled={busy} placeholder="Paste the message to send once they accept…"
+          onBlur={(e) => { const draft = e.target.value.trim() || null; if (draft !== (c.draft ?? null)) save({ draft }); }} />}
       </div>
       <div className={`note-stream-time${overdue ? " overdue" : ""}`}>
         {overdue ? `follow up · due ${shortDate(c.next_followup!)}` : c.next_followup && c.stage === "sent" ? `follow up ${shortDate(c.next_followup)}` : c.last_touch ? `touched ${shortDate(c.last_touch)}` : ""}
