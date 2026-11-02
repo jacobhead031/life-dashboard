@@ -31,6 +31,9 @@ const CATEGORIES = ["food", "drinks", "outdoors", "indoors", "walk", "event", "m
 const PLACES = { restaurant: "restaurants", cafe: "coffee shops" } as const;
 const beenLabel = (k: DateIdea["kind"]) => (k === "restaurant" ? "ate here" : k === "cafe" ? "been here" : "we did this");
 
+const WINDOWS = { 7: "next 7 days", 30: "next 30 days" } as const;
+const addDays = (d: string, n: number) => new Date(new Date(`${d}T12:00:00Z`).getTime() + n * 86400000).toISOString().slice(0, 10);
+
 const longDate = (d: string) =>
   new Date(`${d}T12:00:00Z`).toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 
@@ -43,6 +46,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const [cost, setCost] = useState<string>("");
   const [duration, setDuration] = useState<string>("");
   const [starred, setStarred] = useState(false);
+  const [span, setSpan] = useState<0 | keyof typeof WINDOWS>(0); // 0 = no date span
   const [eaten, setEaten] = useState<"" | "been" | "not">("");
   const [place, setPlace] = useState<keyof typeof PLACES>("restaurant");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -62,7 +66,9 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
   const done = activities.filter((i) => i.done_on).sort((a, b) => (b.done_on! > a.done_on! ? 1 : -1));
   // ★ means "we really want this": starred rows sit above everything else in both lists.
   const starFirst = (a: DateIdea, b: DateIdea) => Number(b.want_more) - Number(a.want_more);
-  const upcoming = todo.filter((i) => i.event_on && matches(i)).sort((a, b) => starFirst(a, b) || a.event_on!.localeCompare(b.event_on!));
+  // A span keeps events that are still running and start before it ends; the anytime list hides while one is on.
+  const inSpan = (i: DateIdea) => !span || ((i.event_until ?? i.event_on!) >= today && i.event_on! <= addDays(today, span));
+  const upcoming = todo.filter((i) => i.event_on && matches(i) && inSpan(i)).sort((a, b) => starFirst(a, b) || a.event_on!.localeCompare(b.event_on!));
   const anytime = todo.filter((i) => !i.event_on && matches(i)).sort((a, b) => starFirst(a, b) || a.position - b.position);
   const avg = (id: string) => {
     const s = scores.filter((x) => x.idea_id === id);
@@ -167,7 +173,13 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
         )}
         {view === "todo" && (
           <div className="dates-seg">
-            <button type="button" className={duration === "" ? "on" : ""} onClick={() => setDuration("")}>any time</button>
+            <button type="button" className={span === 0 ? "on" : ""} onClick={() => setSpan(0)}>whenever</button>
+            {(Object.keys(WINDOWS).map(Number) as (keyof typeof WINDOWS)[]).map((w) => <button key={w} type="button" className={span === w ? "on" : ""} onClick={() => setSpan(span === w ? 0 : w)}>{WINDOWS[w]}</button>)}
+          </div>
+        )}
+        {view === "todo" && (
+          <div className="dates-seg">
+            <button type="button" className={duration === "" ? "on" : ""} onClick={() => setDuration("")}>any length</button>
             {DURATIONS.map((d) => <button key={d} type="button" className={duration === d ? "on" : ""} onClick={() => setDuration(duration === d ? "" : d)}>{d}</button>)}
           </div>
         )}
@@ -180,13 +192,14 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
 
       {view === "todo" && (
         <>
-          {upcoming.length > 0 && (
+          {(upcoming.length > 0 || span !== 0) && (
             <section>
-              <div className="life-cat">coming up</div>
+              <div className="life-cat">coming up{span ? ` · ${WINDOWS[span]}` : ""}</div>
+              {upcoming.length === 0 && <p className="life-none">No events in the {WINDOWS[span as keyof typeof WINDOWS]} match. Loosen the filters.</p>}
               {upcoming.map((i) => <div key={i.id} className="dates-row"><span className="todo-drag-handle" style={{ visibility: "hidden" }}>⠿</span>{row(i)}</div>)}
             </section>
           )}
-          <section>
+          {span === 0 && <section>
             <div className="life-cat">anytime</div>
             {anytime.length === 0 && <p className="life-none">Nothing matches. Loosen the filters or add an idea.</p>}
             <DndContext id="dates-dnd" sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -194,7 +207,7 @@ export function DatesContent({ ideas: serverIdeas, scores, media, userId, todayS
                 {anytime.map((i) => <SortableRow key={i.id} id={i.id}>{row(i)}</SortableRow>)}
               </SortableContext>
             </DndContext>
-          </section>
+          </section>}
         </>
       )}
 
