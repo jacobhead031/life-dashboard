@@ -7,7 +7,6 @@ const TABS = [
   { key: "career", href: "/career", label: "Career" },
   { key: "coach", href: "/coach", label: "Coach" }, // /stats lives inside Coach now
   { key: "projects", href: "/notes", label: "Projects" },
-  { key: "health", href: "/health", label: "Health" },
   { key: "budget", href: "/budget", label: "Budget" },
   { key: "goals", href: "/life", label: "Goals" },
   { key: "dates", href: "/dates", label: "Dates" },

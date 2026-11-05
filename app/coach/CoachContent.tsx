@@ -5,7 +5,7 @@ import { useOptimistic, useRef, useState, useTransition } from "react";
 import { addTriCheckin, saveTriCalories, setTriGearStatus, setTriSessionStatus } from "@/app/actions";
 import type { HealthDay, TriCheckin, TriGear, TriPhase, TriProfile, TriSession, TriSessionStatus } from "@/lib/types";
 import { addDays, daysBetween, weekMonday } from "@/lib/utils";
-import { recoveryColor, Sparkline } from "@/app/health/HealthContent";
+import { recoveryColor, Sparkline } from "@/components/Charts";
 
 const DOW = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const STATUS_COLOR: Record<TriSessionStatus, string> = {

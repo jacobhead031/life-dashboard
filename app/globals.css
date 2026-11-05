@@ -1512,7 +1512,7 @@ body {
 }
 .sort-status-pill.active { color: var(--green); }
 
-/* ─── Health tab ─────────────────────────────────────────────── */
+/* ─── Stat tiles + charts (components/Charts.tsx; used by /coach, /stats, /career, /budget) ── */
 .stat-num {
   font-family: var(--font-space-grotesk), sans-serif;
   font-size: 34px;

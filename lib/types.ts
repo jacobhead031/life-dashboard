@@ -200,13 +200,6 @@ export type HealthDay = {
   updated_at: string;
 };
 
-export type HealthRecs = {
-  user_id: string;
-  week_of: string; // YYYY-MM-DD (Sunday)
-  recs: string[];
-  updated_at: string;
-};
-
 export type SchoolClass = {
   id: string;
   user_id: string;

@@ -2,7 +2,7 @@
 
 import type { HealthDay, TriActivity } from "@/lib/types";
 import { addDays, weekMonday } from "@/lib/utils";
-import { Bars, Sparkline } from "@/app/health/HealthContent";
+import { Bars, Sparkline } from "@/components/Charts";
 
 type Week = { monday: string; minutes: number; load: number; swim_m: number; bike_km: number; run_km: number; count: number };
 

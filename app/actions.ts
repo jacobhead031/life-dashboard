@@ -1234,7 +1234,6 @@ export async function saveTriCalories(data: { date: string; calories: number | n
     fat: n(data.fat, "Fat"),
   }, { onConflict: "user_id,date" }));
   revalidatePath("/coach");
-  revalidatePath("/health");
 }
 
 // Lift log: re-saving a day's exercise replaces its sets, so edits are idempotent.

@@ -16,7 +16,6 @@ import { ReflectionCard } from "@/components/cards/ReflectionCard";
 import { BirthdaysCard } from "@/components/cards/BirthdaysCard";
 import { HabitsCard } from "@/components/cards/HabitsCard";
 import { WeeklyGoalsCard } from "@/components/cards/WeeklyGoalsCard";
-import { HealthCard } from "@/components/cards/HealthCard";
 import { ThisYearCard } from "@/components/cards/ThisYearCard";
 import { CoachWeekCard } from "@/components/cards/CoachWeekCard";
 import { CareerWeekCard } from "@/components/cards/CareerWeekCard";
@@ -98,8 +97,6 @@ export default async function HomePage() {
     { data: habits },
     { data: habitLogs },
     { data: weeklyGoals },
-    { data: healthDays },
-    { data: healthWeights },
     { data: schoolItems },
     { data: settings },
     { data: lifeGoals },
@@ -145,18 +142,6 @@ export default async function HomePage() {
     supabase.from("habit").select("*").order("created_at"),
     supabase.from("habit_log").select("*").gte("date", thirtyAgoStr).order("date"),
     supabase.from("weekly_goal").select("*").eq("week", weekStr).order("position").order("created_at"),
-    supabase
-      .from("health_day")
-      .select("*")
-      .not("recovery_pct", "is", null)
-      .order("date", { ascending: false })
-      .limit(1),
-    supabase
-      .from("health_day")
-      .select("date, weight")
-      .not("weight", "is", null)
-      .order("date", { ascending: false })
-      .limit(1),
     supabase
       .from("school_item")
       .select("*, school_class(name, color)")
@@ -223,7 +208,6 @@ export default async function HomePage() {
           { id: "this-year", span: 6, href: "/life", node: <ThisYearCard goals={lifeGoals ?? []} doneMove={doneMove ?? null} journalDates={(journal ?? []).map((j) => j.date)} journalStart={settings?.journal_start ?? null} todayStr={today} /> },
           { id: "habits", span: 6, href: "/habits", node: <HabitsCard habits={habits ?? []} logs={habitLogs ?? []} todayStr={today} /> },
           { id: "weekly-goals", span: 6, node: <WeeklyGoalsCard goals={weeklyGoals ?? []} weekStr={weekStr} /> },
-          { id: "health", span: 6, href: "/health", node: <HealthCard latest={healthDays?.[0] ?? null} lastWeight={healthWeights?.[0] ?? null} /> },
           { id: "school", span: 6, href: "/school", node: <SchoolWeekCard items={school} weekStr={weekStr} todayStr={today} /> },
           { id: "coach", span: 6, href: "/coach", node: <CoachWeekCard sessions={triWeek ?? []} weekStr={weekStr} todayStr={today} /> },
           { id: "career", span: 6, href: "/career", node: <CareerWeekCard todos={(careerTodos ?? []) as CareerTodo[]} todayStr={today} /> },
