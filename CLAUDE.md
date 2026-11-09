@@ -104,14 +104,14 @@ user_settings (+): partner_id uuid
 career_todo: id, user_id, week date (Monday), text, done, position
 career_app: id, user_id, role, company, location, term, status (to_apply|applied|interview|offer|watch|closed),
   url, notes, applied_on, heard_on, source (manual|agent), created_at, updated_at
-career_contact: id, user_id, name, role, company, why, channel (email|linkedin), stage (found|drafted|sent|replied|call|shadow),
+career_contact: id, user_id, name, role, company, why, channel (email|linkedin), stage (found|pending|accepted|messaged|call),
   email, linkedin_url, draft (the note to send), sent_on, followup_sent, next_followup, last_touch, do_not_contact, source
 career_win: id, user_id, happened_on, text, metric   -- brag book
 user_settings (+): sales_exp_since date  -- months of sales-facing experience count from here
 ```
-- Plan and gates are constants in `lib/career.ts` (`GATES`, `WEEKLY_MESSAGE_TARGET`); scorecard is derived from `career_contact` (`sent_on` sets the streak and the weekly count; marking a contact `sent` stamps `sent_on` and a follow-up 7 days out).
+- Plan and gates are constants in `lib/career.ts` (`GATES`, `WEEKLY_MESSAGE_TARGET`); scorecard is derived from `career_contact` (`sent_on` sets the streak and the weekly count). Outreach is connect-first: `found` (agent drafted the note) → `pending` (connection request sent) → `accepted` → `messaged` (full note sent in the DMs; stamps `sent_on` and a follow-up 7 days out) → `call`. Labels live in `STAGE_LABEL`.
 - Seed: `lib/career-seed.json` via `seedCareer` (only when no `career_app` rows exist). Home card `career` shows this week's `career_todo`.
-- **Sunday 10 am agent:** `~/health-coach/career_agent.py` (`jobs.py career`): job scan → `career_app` (`source = agent`, flips `watch` rows), ~5 contacts/week with a drafted note → `career_contact` (`stage = drafted`, LinkedIn-only; it never touches a mailbox), follow-up notes, 3–5 `career_todo` for the coming week, then the "Career week of YYYY-MM-DD" brief to Jacob. A reply to that brief is logged to `career_win` by `coach_email.py`'s poller. `do_not_contact` is absolute.
+- **Sunday 10 am agent:** `~/health-coach/career_agent.py` (`jobs.py career`): job scan → `career_app` (`source = agent`, flips `watch` rows), ~5 contacts/week with a drafted note → `career_contact` (`stage = found`, LinkedIn-only; it never touches a mailbox), follow-up notes, 3–5 `career_todo` for the coming week, then the "Career week of YYYY-MM-DD" brief to Jacob. A reply to that brief is logged to `career_win` by `coach_email.py`'s poller. `do_not_contact` is absolute.
 
 ### `tri_*` — triathlon coach (`/coach`)
 ```sql

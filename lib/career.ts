@@ -18,7 +18,12 @@ export const STANDING = [
 ];
 
 export const APP_STATUSES = ["to_apply", "applied", "interview", "offer", "watch", "closed"] as const;
-export const CONTACT_STAGES = ["found", "drafted", "sent", "replied", "call", "shadow"] as const;
+// Outreach is connect-first on LinkedIn: find them -> send a connection request with a short note ->
+// they accept -> send the full message in the DMs -> follow up / call.
+export const CONTACT_STAGES = ["found", "pending", "accepted", "messaged", "call"] as const;
+export const STAGE_LABEL: Record<(typeof CONTACT_STAGES)[number], string> = {
+  found: "found", pending: "connect sent", accepted: "accepted", messaged: "message sent", call: "follow up / call",
+};
 
 export function currentGate(today: string) {
   return GATES.find((g) => today >= g.start && today <= g.end) ?? GATES[0];
@@ -36,8 +41,8 @@ export function salesExpMonths(since: string | null | undefined, today: string):
 /** Weekly scorecard: messages sent this week, follow-ups due, and the streak of consecutive weeks with ≥1 message. */
 export function scorecard(contacts: CareerContact[], weekMonday: string, today: string, mondayOf: (d: string) => string, addDays: (d: string, n: number) => string) {
   const sentThisWeek = contacts.filter((c) => c.sent_on && mondayOf(c.sent_on) === weekMonday).length;
-  const followupsDue = contacts.filter((c) => c.next_followup && c.next_followup <= today && c.stage === "sent" && !c.do_not_contact).length;
-  const replies = contacts.filter((c) => ["replied", "call", "shadow"].includes(c.stage)).length;
+  const followupsDue = contacts.filter((c) => c.next_followup && c.next_followup <= today && c.stage === "messaged" && !c.do_not_contact).length;
+  const replies = contacts.filter((c) => ["accepted", "messaged", "call"].includes(c.stage)).length;
   const sent = contacts.filter((c) => c.sent_on).length;
   // Consecutive weeks with at least one message, counted back from this week (or last week if this one is still empty).
   const weeks = new Set(contacts.flatMap((c) => (c.sent_on ? [mondayOf(c.sent_on)] : [])));

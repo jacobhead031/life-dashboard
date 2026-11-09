@@ -5,7 +5,7 @@ import { DndContext, MouseSensor, TouchSensor, KeyboardSensor, useSensor, useSen
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import type { CareerApp, CareerContact, CareerTodo, CareerWin } from "@/lib/types";
-import { APP_STATUSES, CONTACT_STAGES, GATES, STANDING, WEEKLY_MESSAGE_TARGET, currentGate, salesExpMonths, scorecard } from "@/lib/career";
+import { APP_STATUSES, CONTACT_STAGES, GATES, STAGE_LABEL, STANDING, WEEKLY_MESSAGE_TARGET, currentGate, salesExpMonths, scorecard } from "@/lib/career";
 import { addDays, weekMonday } from "@/lib/utils";
 import {
   addCareerApp, addCareerContact, addCareerTodo, addCareerWin, deleteCareerApp, deleteCareerContact, deleteCareerTodo, deleteCareerWin,
@@ -60,8 +60,8 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
     startTransition(async () => { patchApp({ id: String(active.id), position }); await reorderCareerApp(String(active.id), position); });
   }
   const live = contacts.filter((c) => !c.do_not_contact);
-  // Outreach: the notes still to send sit on top, then the ones waiting on a reply, then the rest by stage.
-  const contactGroups = [...["drafted", "sent", "replied", "call", "shadow", "found"].map((s) => [s, live.filter((c) => c.stage === s)] as const),
+  // Outreach groups follow the process: found -> connect sent -> accepted -> message sent -> follow up / call.
+  const contactGroups = [...CONTACT_STAGES.map((s) => [STAGE_LABEL[s], live.filter((c) => c.stage === s)] as const),
     ["do not contact", contacts.filter((c) => c.do_not_contact)] as const].filter(([, l]) => l.length);
 
   if (apps.length === 0 && contacts.length === 0 && todos.length === 0) {
@@ -130,7 +130,7 @@ export function CareerContent({ todos: serverTodos, apps, contacts, wins, salesE
 
       {/* ── Outreach ── */}
       <section className="card span-6">
-        <div className="card-label"><span>outreach</span><span className="card-nav">{live.filter((c) => c.stage === "sent").length} waiting · {live.filter((c) => c.stage === "drafted").length} drafted</span></div>
+        <div className="card-label"><span>outreach</span><span className="card-nav">{live.filter((c) => c.stage === "accepted").length} to message · {live.filter((c) => c.stage === "pending").length} pending · {live.filter((c) => c.stage === "found").length} to connect</span></div>
         {contactGroups.map(([s, list]) => <div key={s}><p className="coach-meta career-group">{s}</p>{list.map((c) => <ContactRow key={c.id} c={c} today={today} busy={isPending} save={(f) => run(() => saveCareerContact(c.id, f))} remove={() => run(() => deleteCareerContact(c.id))} />)}</div>)}
         <ContactForm busy={isPending} submit={(f) => run(() => addCareerContact(f))} />
       </section>
@@ -264,7 +264,7 @@ function ContactRow({ c, today, busy, save, remove }: { c: CareerContact; today:
   const [showDraft, setShowDraft] = useState(false);
   const [copied, setCopied] = useState(false);
   if (editing) return <ContactForm busy={busy} c={c} submit={(f) => { save(f); setEditing(false); }} cancel={() => setEditing(false)} />;
-  const overdue = c.next_followup && c.next_followup <= today && c.stage === "sent";
+  const overdue = c.next_followup && c.next_followup <= today && c.stage === "messaged";
   async function copyDraft() {
     try { await navigator.clipboard.writeText(c.draft ?? ""); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { setShowDraft(true); }
   }
@@ -272,10 +272,11 @@ function ContactRow({ c, today, busy, save, remove }: { c: CareerContact; today:
     <div className={`note-stream-item career-row${c.do_not_contact ? " done" : ""}`}>
       <select className="dates-date career-select" value={c.stage} disabled={busy || c.do_not_contact} aria-label="Stage" onChange={(e) => {
         const stage = e.target.value;
-        // Marking sent stamps the date and queues a follow-up a week out; a reply clears it.
-        save(stage === "sent" && !c.sent_on ? { stage, sent_on: today, last_touch: today, next_followup: addDays(today, 7) } : ["replied", "call", "shadow"].includes(stage) ? { stage, last_touch: today, next_followup: null } : { stage });
+        // "message sent" stamps sent_on and queues a follow-up a week out; accepted / call clear it; a connect request is just a touch.
+        save(stage === "messaged" ? { stage, last_touch: today, next_followup: addDays(today, 7), ...(c.sent_on ? {} : { sent_on: today }) }
+          : stage === "pending" ? { stage, last_touch: today } : ["accepted", "call"].includes(stage) ? { stage, last_touch: today, next_followup: null } : { stage });
       }}>
-        {CONTACT_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+        {CONTACT_STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}
       </select>
       <div className="note-stream-body">
         <button type="button" className="career-title" onClick={() => setEditing(true)}>{c.name}</button>
@@ -294,7 +295,7 @@ function ContactRow({ c, today, busy, save, remove }: { c: CareerContact; today:
           onBlur={(e) => { const draft = e.target.value.trim() || null; if (draft !== (c.draft ?? null)) save({ draft }); }} />}
       </div>
       <div className={`note-stream-time${overdue ? " overdue" : ""}`}>
-        {overdue ? `follow up · due ${shortDate(c.next_followup!)}` : c.next_followup && c.stage === "sent" ? `follow up ${shortDate(c.next_followup)}` : c.last_touch ? `touched ${shortDate(c.last_touch)}` : ""}
+        {overdue ? `follow up · due ${shortDate(c.next_followup!)}` : c.next_followup && c.stage === "messaged" ? `follow up ${shortDate(c.next_followup)}` : c.last_touch ? `touched ${shortDate(c.last_touch)}` : ""}
       </div>
       <button type="button" className="d-btn danger dates-x" aria-label="Delete" disabled={busy} onClick={remove}>✕</button>
     </div>
@@ -312,7 +313,7 @@ function ContactForm({ busy, c, submit, cancel }: { busy: boolean; c?: CareerCon
         <div className="d-field"><label>role</label><input name="role" maxLength={200} defaultValue={c?.role ?? ""} /></div>
         <div className="d-field"><label>company</label><input name="company" maxLength={200} defaultValue={c?.company ?? ""} /></div>
         <div className="d-field"><label>channel</label><select name="channel" defaultValue={c?.channel ?? "linkedin"}><option value="linkedin">linkedin</option><option value="email">email</option></select></div>
-        <div className="d-field"><label>stage</label><select name="stage" defaultValue={c?.stage ?? "found"}>{CONTACT_STAGES.map((s) => <option key={s}>{s}</option>)}</select></div>
+        <div className="d-field"><label>stage</label><select name="stage" defaultValue={c?.stage ?? "found"}>{CONTACT_STAGES.map((s) => <option key={s} value={s}>{STAGE_LABEL[s]}</option>)}</select></div>
         <div className="d-field"><label>email</label><input name="email" type="email" maxLength={200} defaultValue={c?.email ?? ""} /></div>
         <div className="d-field"><label>linkedin</label><input name="linkedin_url" type="url" defaultValue={c?.linkedin_url ?? ""} placeholder="https://" /></div>
         <div className="d-field"><label>next follow-up</label><input name="next_followup" type="date" defaultValue={c?.next_followup ?? ""} /></div>
