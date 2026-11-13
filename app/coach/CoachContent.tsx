@@ -197,7 +197,7 @@ export function CoachContent({ today, profile, phases, week, tests, health, chec
       </section>
 
       <section className="card span-6">
-        <div className="card-label"><span>lifts · {weekOffset === 0 ? "this week" : fmtDay(monday)}</span><Link href={`/coach/lift?week=${monday}`} className="card-nav">open lift log →</Link></div>
+        <div className="card-label"><span>lifts · {weekOffset === 0 ? "this week" : fmtDay(monday)}</span><span><Link href={`/coach/lift?week=${monday}`} className="card-nav">open lift log →</Link> <Link href="/coach/stretch" className="card-nav">nightly stretch →</Link></span></div>
         {weekSessions.filter((s) => s.sport === "strength").length === 0 ? (
           <div className="empty-state"><p>No gym sessions this week.</p></div>
         ) : (
